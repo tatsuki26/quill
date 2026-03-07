@@ -265,7 +265,7 @@ function App() {
         justifyContent: 'space-between',
         borderBottom: '1px solid #008000',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
           <button
             onClick={() => {
               setShowReport(false)
@@ -280,15 +280,7 @@ function App() {
           >
             <ArrowLeft size={24} />
           </button>
-        </div>
-        
-        {/* 中央にロゴを大きく表示 */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          flex: 1,
-        }}>
+          {/* ロゴを戻るボタンの右に表示 */}
           <img
             src="/logo-quill.png"
             alt="Quill"
@@ -310,6 +302,9 @@ function App() {
             }}
           />
         </div>
+        
+        {/* 中央のスペース（空） */}
+        <div style={{ flex: 1 }}></div>
 
         {/* 右側のボタン */}
         <div style={{ display: 'flex', gap: '0.5rem', flex: 1, justifyContent: 'flex-end' }}>
