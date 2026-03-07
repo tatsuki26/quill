@@ -46,5 +46,6 @@ export function convertToTransaction(row: CSVRow): Omit<Transaction, 'id' | 'cat
     payment_category: row['支払い区分'] !== '-' ? row['支払い区分'] : null,
     user: row['利用者'] !== '-' ? row['利用者'] : null,
     transaction_number: row['取引番号'],
+    memo: null,
   }
 }
