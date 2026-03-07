@@ -293,8 +293,10 @@ function App() {
             src="/logo.png"
             alt="Quill"
             style={{
-              height: '80px',
+              maxHeight: '180px',
+              height: 'auto',
               width: 'auto',
+              maxWidth: '400px',
               objectFit: 'contain',
             }}
             onError={(e) => {
