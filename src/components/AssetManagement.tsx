@@ -139,7 +139,7 @@ export function AssetManagement({ onClose }: AssetManagementProps) {
   }
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -169,20 +169,6 @@ export function AssetManagement({ onClose }: AssetManagementProps) {
               追加
             </button>
           )}
-          <button
-            onClick={onClose}
-            style={{
-              padding: '0.5rem 1rem',
-              border: 'none',
-              borderRadius: '8px',
-              backgroundColor: '#ccc',
-              color: 'white',
-              cursor: 'pointer',
-              fontSize: '14px',
-            }}
-          >
-            閉じる
-          </button>
         </div>
       </div>
 

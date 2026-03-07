@@ -14,6 +14,7 @@ import { RecategorizeButton } from './components/RecategorizeButton'
 import { CategoryManagement } from './components/CategoryManagement'
 import { AssetManagement } from './components/AssetManagement'
 import { ManualEntry } from './components/ManualEntry'
+import { SettingsPage } from './components/SettingsPage'
 import { Plus } from 'lucide-react'
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [showAssetManagement, setShowAssetManagement] = useState(false)
+  const [showSettingsPage, setShowSettingsPage] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -263,7 +265,7 @@ function App() {
         alignItems: 'center',
         justifyContent: 'space-between',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
           <button
             onClick={() => {
               setShowReport(false)
@@ -278,28 +280,32 @@ function App() {
           >
             <ArrowLeft size={24} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img
-              src="/logo.png"
-              alt="Quill"
-              style={{
-                height: '32px',
-                width: 'auto',
-              }}
-              onError={(e) => {
-                console.error('ロゴの読み込みに失敗しました:', e)
-                // フォールバック: SVGを試す
-                if (e.currentTarget.src.endsWith('.png')) {
-                  e.currentTarget.src = '/logo.svg'
-                } else {
-                  e.currentTarget.style.display = 'none'
-                }
-              }}
-            />
-            <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>取引履歴</h1>
-          </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        
+        {/* 中央にアイコンを大きく表示 */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          flex: 1,
+        }}>
+          <img
+            src="/icon.png"
+            alt="Quill"
+            style={{
+              height: '64px',
+              width: '64px',
+              objectFit: 'contain',
+            }}
+            onError={(e) => {
+              console.error('アイコンの読み込みに失敗しました:', e)
+              e.currentTarget.style.display = 'none'
+            }}
+          />
+        </div>
+
+        {/* 右側のボタン */}
+        <div style={{ display: 'flex', gap: '0.5rem', flex: 1, justifyContent: 'flex-end' }}>
           <button
             onClick={() => setShowReport(!showReport)}
             style={{
@@ -313,72 +319,38 @@ function App() {
             <BarChart3 size={24} />
           </button>
           {isAdmin && (
-            <>
-              <button
-                onClick={() => setShowUpload(!showUpload)}
-                style={{
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'white',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-              >
-                <UploadIcon size={24} />
-              </button>
-              <button
-                onClick={() => {
-                  setShowSettings(true)
-                  setShowCategoryManagement(false)
-                  setShowAssetManagement(false)
-                }}
-                style={{
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'white',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                title="設定"
-              >
-                <Settings size={24} />
-              </button>
-              <button
-                onClick={() => {
-                  setShowCategoryManagement(!showCategoryManagement)
-                  setShowAssetManagement(false)
-                  setShowSettings(false)
-                }}
-                style={{
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'white',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                title="カテゴリ管理"
-              >
-                <List size={24} />
-              </button>
-              <button
-                onClick={() => {
-                  setShowAssetManagement(true)
-                  setShowCategoryManagement(false)
-                  setShowSettings(false)
-                }}
-                style={{
-                  border: 'none',
-                  backgroundColor: 'transparent',
-                  color: 'white',
-                  cursor: 'pointer',
-                  padding: '4px',
-                }}
-                title="資産管理"
-              >
-                💰
-              </button>
-            </>
+            <button
+              onClick={() => setShowUpload(!showUpload)}
+              style={{
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'white',
+                cursor: 'pointer',
+                padding: '4px',
+              }}
+              title="CSVアップロード"
+            >
+              <UploadIcon size={24} />
+            </button>
           )}
+          <button
+            onClick={() => {
+              setShowSettingsPage(true)
+              setShowCategoryManagement(false)
+              setShowAssetManagement(false)
+              setShowSettings(false)
+            }}
+            style={{
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              padding: '4px',
+            }}
+            title="設定"
+          >
+            <Settings size={24} />
+          </button>
           <button
             onClick={loadTransactions}
             style={{
@@ -477,6 +449,15 @@ function App() {
         />
       )}
 
+      {showSettingsPage && (
+        <SettingsPage
+          onClose={() => {
+            setShowSettingsPage(false)
+            loadTransactions()
+          }}
+        />
+      )}
+
       {showSettings && isAdmin && (
         <DefaultHiddenSettings
           onClose={() => setShowSettings(false)}
@@ -492,7 +473,7 @@ function App() {
       )}
 
       {/* FABボタン（右下） */}
-      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showManualEntry && (
+      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && (
         <button
           onClick={() => setShowManualEntry(true)}
           style={{
