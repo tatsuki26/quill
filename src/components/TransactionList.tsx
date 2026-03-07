@@ -3,13 +3,15 @@ import { formatTransactionDate, formatMonthHeader } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
 import { useMemo, useState } from 'react'
 import { Edit2, Check, X } from 'lucide-react'
+import { CATEGORIES } from '../lib/gemini'
 
 interface TransactionListProps {
   transactions: Transaction[]
   onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
+  onUpdateCategory?: (id: string, merchant: string, category: string) => Promise<void>
 }
 
-export function TransactionList({ transactions, onUpdateMemo }: TransactionListProps) {
+export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }: TransactionListProps) {
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
     
@@ -194,13 +196,10 @@ export function TransactionList({ transactions, onUpdateMemo }: TransactionListP
                     {getStatusBadge(tx)}
                   </div>
                   
-                  {tx.category && (
-                    <div style={{
-                      marginTop: '4px',
-                    }}>
-                      {getCategoryBadge(tx.category)}
-                    </div>
-                  )}
+                  <CategoryField
+                    transaction={tx}
+                    onUpdateCategory={onUpdateCategory}
+                  />
                   
                   <MemoField
                     transaction={tx}
@@ -397,6 +396,144 @@ function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
         >
           <Edit2 size={12} />
           {transaction.memo ? '編集' : '追加'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+interface CategoryFieldProps {
+  transaction: Transaction
+  onUpdateCategory?: (id: string, merchant: string, category: string) => Promise<void>
+}
+
+function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [category, setCategory] = useState(transaction.category || 'その他')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!onUpdateCategory) return
+    
+    setIsSaving(true)
+    try {
+      await onUpdateCategory(transaction.id, transaction.merchant, category)
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error updating category:', error)
+      alert('カテゴリの保存に失敗しました')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setCategory(transaction.category || 'その他')
+    setIsEditing(false)
+  }
+
+  if (isEditing) {
+    return (
+      <div style={{
+        marginTop: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+      }}>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '13px',
+          }}
+        >
+          {CATEGORIES.map(cat => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: '#00C300',
+            color: 'white',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+          }}
+        >
+          <Check size={14} />
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={isSaving}
+          style={{
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: '#ccc',
+            color: 'white',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+          }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      marginTop: '4px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    }}>
+      {transaction.category && (
+        <div>
+          {getCategoryBadge(transaction.category)}
+        </div>
+      )}
+      {!transaction.category && (
+        <div style={{
+          fontSize: '12px',
+          color: '#999',
+          fontStyle: 'italic',
+        }}>
+          カテゴリ未設定
+        </div>
+      )}
+      {onUpdateCategory && (
+        <button
+          onClick={() => setIsEditing(true)}
+          style={{
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: '#f0f0f0',
+            color: '#666',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '11px',
+          }}
+        >
+          <Edit2 size={12} />
+          {transaction.category ? '編集' : '設定'}
         </button>
       )}
     </div>

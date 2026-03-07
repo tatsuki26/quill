@@ -26,13 +26,18 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
       // 取引データを変換
       const transactions = rows.map((row) => convertToTransaction(row))
 
-      // 既存のカテゴリマッピングを取得（分類は手動で行う）
+      // 既存のカテゴリマッピングを取得（手動編集されたものも含む）
       const { data: existingMappings } = await supabase
         .from('category_mappings')
-        .select('merchant_name, category')
+        .select('merchant_name, category, is_manual')
 
       const existingMap = new Map(
         existingMappings?.map(m => [m.merchant_name, m.category]) || []
+      )
+      
+      // 手動編集された取引先のセット
+      const manualMerchants = new Set(
+        existingMappings?.filter(m => m.is_manual).map(m => m.merchant_name) || []
       )
 
       // デフォルト非表示設定を取得

@@ -28,6 +28,7 @@ CREATE TABLE category_mappings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   merchant_name TEXT UNIQUE NOT NULL,
   category TEXT NOT NULL,
+  is_manual BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

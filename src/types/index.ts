@@ -24,6 +24,7 @@ export interface CategoryMapping {
   id: string
   merchant_name: string
   category: string
+  is_manual: boolean
   created_at: string
   updated_at: string
 }

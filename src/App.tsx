@@ -88,6 +88,43 @@ function App() {
     }
   }
 
+  const handleUpdateCategory = async (id: string, merchant: string, category: string) => {
+    try {
+      // 取引データのカテゴリを更新
+      const { error: txError } = await supabase
+        .from('transactions')
+        .update({ category, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (txError) throw txError
+
+      // カテゴリマッピングを更新（手動編集としてマーク）
+      const { error: mappingError } = await supabase
+        .from('category_mappings')
+        .upsert({
+          merchant_name: merchant,
+          category,
+          is_manual: true,
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'merchant_name',
+        })
+
+      if (mappingError) throw mappingError
+
+      // ローカル状態を更新
+      setTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, category } : tx))
+      )
+      setFilteredTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, category } : tx))
+      )
+    } catch (error) {
+      console.error('Error updating category:', error)
+      throw error
+    }
+  }
+
   const loadTransactions = async () => {
     try {
       setLoading(true)
@@ -322,6 +359,7 @@ function App() {
             <TransactionList
               transactions={filteredTransactions}
               onUpdateMemo={handleUpdateMemo}
+              onUpdateCategory={handleUpdateCategory}
             />
           )}
 

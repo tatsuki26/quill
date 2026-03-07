@@ -20,6 +20,16 @@ export function RecategorizeButton({ onComplete }: RecategorizeButtonProps) {
     setProgress('取引先を取得中...')
 
     try {
+      // 手動編集されたカテゴリマッピングを取得
+      const { data: manualMappings } = await supabase
+        .from('category_mappings')
+        .select('merchant_name')
+        .eq('is_manual', true)
+
+      const manualMerchants = new Set(
+        manualMappings?.map(m => m.merchant_name) || []
+      )
+
       // 全てのユニークな取引先を取得
       const { data: transactions, error: txError } = await supabase
         .from('transactions')
@@ -28,19 +38,28 @@ export function RecategorizeButton({ onComplete }: RecategorizeButtonProps) {
 
       if (txError) throw txError
 
+      // 手動編集された取引先を除外
       const uniqueMerchants = Array.from(
         new Set(transactions?.map(tx => tx.merchant).filter(Boolean) || [])
-      )
+      ).filter(merchant => !manualMerchants.has(merchant))
+
+      if (uniqueMerchants.length === 0) {
+        alert('再分類対象の取引先がありません（全て手動編集済みです）')
+        setRecategorizing(false)
+        setProgress('')
+        return
+      }
 
       setProgress(`${uniqueMerchants.length}件の取引先を分類中...`)
 
       // AIでカテゴリ分類
       const categories = await categorizeMerchantsBatch(uniqueMerchants)
 
-      // カテゴリマッピングを更新
+      // カテゴリマッピングを更新（手動編集フラグはfalseのまま）
       const mappingsToUpsert = Object.entries(categories).map(([merchant, category]) => ({
         merchant_name: merchant,
         category,
+        is_manual: false,
       }))
 
       if (mappingsToUpsert.length > 0) {
@@ -49,7 +68,7 @@ export function RecategorizeButton({ onComplete }: RecategorizeButtonProps) {
         })
       }
 
-      // 取引データのカテゴリを更新
+      // 取引データのカテゴリを更新（手動編集された取引先は除外）
       setProgress('取引データのカテゴリを更新中...')
       const updatePromises = Object.entries(categories).map(([merchant, category]) =>
         supabase
