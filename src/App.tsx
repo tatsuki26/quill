@@ -24,9 +24,40 @@ function App() {
 
   useEffect(() => {
     if (user) {
+      initializeDefaultSettings()
       loadTransactions()
     }
   }, [user])
+
+  const initializeDefaultSettings = async () => {
+    try {
+      // 既存の設定を確認
+      const { data: existingSettings } = await supabase
+        .from('default_hidden_settings')
+        .select('setting_type, value')
+
+      const existingSet = new Set(
+        existingSettings?.map(s => `${s.setting_type}:${s.value}`) || []
+      )
+
+      // デフォルト設定を追加（存在しない場合のみ）
+      const defaultSettings = [
+        { setting_type: 'payment_method', value: 'PayPay残高' },
+        { setting_type: 'transaction_type', value: 'ポイント、残高の獲得' },
+      ]
+
+      const settingsToInsert = defaultSettings.filter(
+        setting => !existingSet.has(`${setting.setting_type}:${setting.value}`)
+      )
+
+      if (settingsToInsert.length > 0) {
+        await supabase.from('default_hidden_settings').insert(settingsToInsert)
+      }
+    } catch (error) {
+      console.error('Error initializing default settings:', error)
+      // エラーが発生してもアプリは続行
+    }
+  }
 
   useEffect(() => {
     applyFilters()
@@ -35,13 +66,52 @@ function App() {
   const loadTransactions = async () => {
     try {
       setLoading(true)
+      
+      // デフォルト非表示設定を取得
+      const { data: hiddenSettings } = await supabase
+        .from('default_hidden_settings')
+        .select('setting_type, value')
+
+      const hiddenPaymentMethods = new Set(
+        hiddenSettings?.filter(s => s.setting_type === 'payment_method').map(s => s.value) || []
+      )
+      const hiddenTransactionTypes = new Set(
+        hiddenSettings?.filter(s => s.setting_type === 'transaction_type').map(s => s.value) || []
+      )
+
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
         .order('transaction_date', { ascending: false })
 
       if (error) throw error
-      setTransactions(data || [])
+
+      // 既存データの非表示フラグを更新（必要に応じて）
+      const transactionsToUpdate = (data || []).filter(tx => {
+        const shouldBeHidden = hiddenPaymentMethods.has(tx.payment_method) ||
+                               hiddenTransactionTypes.has(tx.transaction_type)
+        return shouldBeHidden && !tx.is_hidden
+      })
+
+      if (transactionsToUpdate.length > 0) {
+        // バッチで更新
+        const updatePromises = transactionsToUpdate.map(tx =>
+          supabase
+            .from('transactions')
+            .update({ is_hidden: true })
+            .eq('id', tx.id)
+        )
+        await Promise.all(updatePromises)
+      }
+
+      // 最新のデータを再取得
+      const { data: updatedData, error: updateError } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('transaction_date', { ascending: false })
+
+      if (updateError) throw updateError
+      setTransactions(updatedData || [])
     } catch (error) {
       console.error('Error loading transactions:', error)
       alert('データの読み込みに失敗しました')
