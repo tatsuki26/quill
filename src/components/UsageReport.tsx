@@ -1,16 +1,15 @@
 import { useMemo } from 'react'
 import { Transaction } from '../types'
 import { formatCurrency } from '../utils/formatCurrency'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface UsageReportProps {
   transactions: Transaction[]
-  selectedMonth?: string
 }
 
 const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#95A5A6']
 
-export function UsageReport({ transactions, selectedMonth }: UsageReportProps) {
+export function UsageReport({ transactions }: UsageReportProps) {
   const reportData = useMemo(() => {
     // 出金のみを集計
     const withdrawals = transactions.filter(tx => tx.withdrawal_amount !== null && !tx.is_hidden)
@@ -120,7 +119,7 @@ export function UsageReport({ transactions, selectedMonth }: UsageReportProps) {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {reportData.categoryData.map((entry, index) => (
+                {reportData.categoryData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

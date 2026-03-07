@@ -82,42 +82,42 @@ ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
 }`
 
   try {
-    const result = await model.generateContent(prompt)
-    const response = await result.response
+    const generateResult = await model.generateContent(prompt)
+    const response = await generateResult.response
     const text = response.text().trim()
     
     // JSONを抽出
     const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (jsonMatch) {
-      const categories = JSON.parse(jsonMatch[0])
-      const result: Record<string, string> = {}
+      const categories = JSON.parse(jsonMatch[0]) as Record<string, string>
+      const categoryMap: Record<string, string> = {}
       
       merchantNames.forEach((name, index) => {
         const key = String(index + 1)
         const category = categories[key] || 'その他'
-        result[name] = category
+        categoryMap[name] = category
       })
       
-      return result
+      return categoryMap
     }
     
     // JSON形式でない場合は個別に分類
-    const result: Record<string, string> = {}
+    const categoryMap: Record<string, string> = {}
     for (const name of merchantNames) {
-      result[name] = await categorizeMerchant(name)
+      categoryMap[name] = await categorizeMerchant(name)
       // レート制限を考慮して少し待機
       await new Promise(resolve => setTimeout(resolve, 100))
     }
     
-    return result
+    return categoryMap
   } catch (error) {
     console.error('Error categorizing merchants batch:', error)
     // エラー時は個別分類にフォールバック
-    const result: Record<string, string> = {}
+    const categoryMap: Record<string, string> = {}
     for (const name of merchantNames) {
-      result[name] = await categorizeMerchant(name)
+      categoryMap[name] = await categorizeMerchant(name)
       await new Promise(resolve => setTimeout(resolve, 100))
     }
-    return result
+    return categoryMap
   }
 }

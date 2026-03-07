@@ -12,7 +12,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const AUTH_PASSWORD = import.meta.env.VITE_AUTH_PASSWORD || 'family2026'
 const ADMIN_USERNAME = 'admin'
-const VIEWER_USERNAME = 'viewer'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)

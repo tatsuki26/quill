@@ -3,7 +3,6 @@ import { Upload, Loader2 } from 'lucide-react'
 import { parseCSV, convertToTransaction } from '../utils/csvParser'
 import { supabase } from '../lib/supabase'
 import { categorizeMerchantsBatch } from '../lib/gemini'
-import { Transaction } from '../types'
 
 interface CSVUploadProps {
   onUploadComplete: () => void
@@ -26,7 +25,7 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
       setProgress(`${rows.length}件の取引を処理中...`)
 
       // 取引データを変換
-      const transactions = rows.map((row, index) => convertToTransaction(row, index))
+      const transactions = rows.map((row) => convertToTransaction(row))
 
       // ユニークな取引先名を取得
       const uniqueMerchants = Array.from(new Set(transactions.map(tx => tx.merchant)))

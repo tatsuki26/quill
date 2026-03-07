@@ -10,7 +10,6 @@ import { supabase } from './lib/supabase'
 import { Transaction, FilterType } from './types'
 import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut } from 'lucide-react'
 import { DefaultHiddenSettings } from './components/DefaultHiddenSettings'
-import { formatMonthHeader } from './utils/dateUtils'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()

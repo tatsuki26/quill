@@ -9,13 +9,12 @@ export function parseCSV(csvText: string): CSVRow[] {
   const result = Papa.parse<CSVRow>(csvText, {
     header: true,
     skipEmptyLines: true,
-    encoding: 'UTF-8',
   })
 
-  return result.data
+  return result.data as CSVRow[]
 }
 
-export function convertToTransaction(row: CSVRow, index: number): Omit<Transaction, 'id' | 'category' | 'is_hidden' | 'created_at' | 'updated_at'> {
+export function convertToTransaction(row: CSVRow): Omit<Transaction, 'id' | 'category' | 'is_hidden' | 'created_at' | 'updated_at'> {
   // 金額の処理（カンマと引用符を除去）
   const withdrawalAmount = row['出金金額（円）'] && row['出金金額（円）'] !== '-'
     ? parseFloat(row['出金金額（円）'].replace(/,/g, '').replace(/"/g, ''))

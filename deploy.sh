@@ -7,7 +7,7 @@ echo "📦 変更をステージング..."
 git add .
 
 echo "💾 コミット..."
-git commit -m "Fix TypeScript errors in csvParser.ts and setup CI/CD"
+git commit -m "Fix all TypeScript compilation errors"
 
 echo "🚀 GitHubにプッシュ..."
 git push origin main
