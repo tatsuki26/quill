@@ -8,7 +8,7 @@ import { CSVUpload } from './components/CSVUpload'
 import { UsageReport } from './components/UsageReport'
 import { supabase } from './lib/supabase'
 import { Transaction, FilterType } from './types'
-import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut } from 'lucide-react'
+import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut, RefreshCw } from 'lucide-react'
 import { DefaultHiddenSettings } from './components/DefaultHiddenSettings'
 import { RecategorizeButton } from './components/RecategorizeButton'
 
@@ -310,6 +310,20 @@ function App() {
               </button>
             </>
           )}
+          <button
+            onClick={loadTransactions}
+            style={{
+              border: 'none',
+              backgroundColor: 'transparent',
+              color: 'white',
+              cursor: 'pointer',
+              padding: '4px',
+              marginRight: '0.5rem',
+            }}
+            title="画面を更新"
+          >
+            <RefreshCw size={24} />
+          </button>
           <button
             onClick={logout}
             style={{
