@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Transaction } from '../types'
 import { formatCurrency } from '../utils/formatCurrency'
 import { formatTransactionDate } from '../utils/dateUtils'
-import { ArrowRight, TrendingUp, TrendingDown, Calendar, CreditCard } from 'lucide-react'
+import { ArrowRight, TrendingDown, Calendar, CreditCard } from 'lucide-react'
 
 interface DashboardProps {
   transactions: Transaction[]
@@ -26,13 +26,6 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
   const monthlyExpense = useMemo(() => {
     return currentMonthTransactions.reduce((sum, tx) => {
       return sum + (tx.withdrawal_amount || 0)
-    }, 0)
-  }, [currentMonthTransactions])
-
-  // 今月の収入合計
-  const monthlyIncome = useMemo(() => {
-    return currentMonthTransactions.reduce((sum, tx) => {
-      return sum + (tx.deposit_amount || 0)
     }, 0)
   }, [currentMonthTransactions])
 
@@ -61,8 +54,7 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
       .slice(0, 5)
   }, [transactions])
 
-  // 取引数
-  const transactionCount = transactions.length
+  // 今月の取引数
   const monthlyTransactionCount = currentMonthTransactions.length
 
   return (
@@ -164,50 +156,7 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
           </div>
         </div>
 
-        {/* 今月の収入 */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '1rem',
-          }}>
-            <div style={{
-              padding: '0.75rem',
-              borderRadius: '8px',
-              backgroundColor: '#efe',
-            }}>
-              <TrendingUp size={24} color="#27ae60" />
-            </div>
-            <span style={{
-              fontSize: '12px',
-              color: '#999',
-            }}>
-              今月の収入
-            </span>
-          </div>
-          <div style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: '#27ae60',
-          }}>
-            {formatCurrency(monthlyIncome)}
-          </div>
-          <div style={{
-            fontSize: '12px',
-            color: '#999',
-            marginTop: '0.5rem',
-          }}>
-            {currentMonthTransactions.filter(tx => tx.deposit_amount).length}件の取引
-          </div>
-        </div>
-
-        {/* 総取引数 */}
+        {/* 今月の取引数 */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
@@ -231,7 +180,7 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
               fontSize: '12px',
               color: '#999',
             }}>
-              総取引数
+              今月の取引数
             </span>
           </div>
           <div style={{
@@ -239,21 +188,21 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
             fontWeight: 'bold',
             color: '#3498db',
           }}>
-            {transactionCount.toLocaleString()}
+            {monthlyTransactionCount.toLocaleString()}
           </div>
           <div style={{
             fontSize: '12px',
             color: '#999',
             marginTop: '0.5rem',
           }}>
-            全期間
+            {currentMonth}
           </div>
         </div>
       </div>
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
         gap: '1.5rem',
       }}>
         {/* カテゴリ別支出 */}

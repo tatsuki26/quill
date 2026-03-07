@@ -291,12 +291,24 @@ function App() {
           <img
             src="/logo-quill.png"
             alt="Quill"
+            onClick={() => {
+              setShowReport(false)
+              setShowUpload(false)
+              setShowSettingsPage(false)
+              setShowCategoryManagement(false)
+              setShowAssetManagement(false)
+              setShowSettings(false)
+              setShowManualEntry(false)
+              setSelectedTransaction(null)
+              setShowTransactions(false)
+            }}
             style={{
               maxHeight: '36px',
               height: 'auto',
               width: 'auto',
               maxWidth: '150px',
               objectFit: 'contain',
+              cursor: 'pointer',
             }}
             onError={(e) => {
               console.error('ロゴの読み込みに失敗しました:', e)
@@ -495,7 +507,7 @@ function App() {
       )}
 
       {/* FABボタン（右下） */}
-      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && !showTransactions && (
+      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && (
         <button
           onClick={() => setShowManualEntry(true)}
           style={{
