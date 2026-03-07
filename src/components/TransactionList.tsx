@@ -281,10 +281,6 @@ function MemoField({ transaction, isAdmin, onUpdateMemo }: MemoFieldProps) {
     setIsEditing(false)
   }
 
-  if (!isAdmin && !transaction.memo) {
-    return null
-  }
-
   if (isEditing) {
     return (
       <div style={{
@@ -386,7 +382,7 @@ function MemoField({ transaction, isAdmin, onUpdateMemo }: MemoFieldProps) {
           詳細なし
         </div>
       )}
-      {isAdmin && (
+      {onUpdateMemo && (
         <button
           onClick={() => setIsEditing(true)}
           style={{

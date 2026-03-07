@@ -319,7 +319,7 @@ function App() {
             <TransactionList
               transactions={filteredTransactions}
               isAdmin={isAdmin}
-              onUpdateMemo={isAdmin ? handleUpdateMemo : undefined}
+              onUpdateMemo={handleUpdateMemo}
             />
           )}
 
