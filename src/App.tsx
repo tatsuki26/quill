@@ -16,6 +16,7 @@ import { AssetManagement } from './components/AssetManagement'
 import { ManualEntry } from './components/ManualEntry'
 import { SettingsPage } from './components/SettingsPage'
 import { TransactionDetail } from './components/TransactionDetail'
+import { Dashboard } from './components/Dashboard'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
@@ -30,6 +31,7 @@ function App() {
   const [showAssetManagement, setShowAssetManagement] = useState(false)
   const [showSettingsPage, setShowSettingsPage] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
+  const [showTransactions, setShowTransactions] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -268,20 +270,23 @@ function App() {
         borderBottom: '1px solid #008000',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-          <button
-            onClick={() => {
-              setShowReport(false)
-              setShowUpload(false)
-            }}
-            style={{
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: 'white',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowLeft size={24} />
-          </button>
+          {(showTransactions || showReport || showUpload) && (
+            <button
+              onClick={() => {
+                setShowReport(false)
+                setShowUpload(false)
+                setShowTransactions(false)
+              }}
+              style={{
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'white',
+                cursor: 'pointer',
+              }}
+            >
+              <ArrowLeft size={24} />
+            </button>
+          )}
           {/* ロゴを戻るボタンの右に表示 */}
           <img
             src="/logo-quill.png"
@@ -390,7 +395,7 @@ function App() {
         </div>
       )}
 
-      {!showUpload && !showReport && isAdmin && (
+      {!showUpload && !showReport && !showTransactions && isAdmin && (
         <div style={{ padding: '1rem', borderBottom: '1px solid #f0f0f0' }}>
           <RecategorizeButton onComplete={loadTransactions} />
         </div>
@@ -398,7 +403,7 @@ function App() {
 
       {showReport ? (
         <UsageReport transactions={filteredTransactions} />
-      ) : (
+      ) : showTransactions ? (
         <>
           <FilterBar
             filters={filters}
@@ -434,6 +439,11 @@ function App() {
             />
           )}
         </>
+      ) : (
+        <Dashboard
+          transactions={transactions}
+          onNavigateToTransactions={() => setShowTransactions(true)}
+        />
       )}
 
       {showCategoryManagement && isAdmin && (
@@ -485,7 +495,7 @@ function App() {
       )}
 
       {/* FABボタン（右下） */}
-      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && (
+      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && !showTransactions && (
         <button
           onClick={() => setShowManualEntry(true)}
           style={{
