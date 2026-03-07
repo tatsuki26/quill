@@ -1081,6 +1081,6 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           </button>
         </div>
       </div>
-    </div>
+    </>
   )
 }
