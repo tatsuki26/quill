@@ -282,7 +282,7 @@ function App() {
           </button>
         </div>
         
-        {/* 中央にアイコンを大きく表示 */}
+        {/* 中央にロゴを大きく表示 */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -290,16 +290,21 @@ function App() {
           flex: 1,
         }}>
           <img
-            src="/icon.png"
+            src="/logo.png"
             alt="Quill"
             style={{
-              height: '64px',
-              width: '64px',
+              height: '80px',
+              width: 'auto',
               objectFit: 'contain',
             }}
             onError={(e) => {
-              console.error('アイコンの読み込みに失敗しました:', e)
-              e.currentTarget.style.display = 'none'
+              console.error('ロゴの読み込みに失敗しました:', e)
+              // フォールバック: SVGを試す
+              if (e.currentTarget.src.endsWith('.png')) {
+                e.currentTarget.src = '/logo.svg'
+              } else {
+                e.currentTarget.style.display = 'none'
+              }
             }}
           />
         </div>
