@@ -79,41 +79,6 @@ export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }
     return null
   }
 
-  const getCategoryBadge = (category: string | null) => {
-    if (!category) return null
-    
-    const categoryColors: Record<string, { bg: string; color: string }> = {
-      '外食': { bg: '#ffe5e5', color: '#cc0000' },
-      'コンビニ': { bg: '#e5f3ff', color: '#0066cc' },
-      'スーパー': { bg: '#e5ffe5', color: '#00cc00' },
-      'ドラッグストア': { bg: '#fff0e5', color: '#cc6600' },
-      'ショッピング': { bg: '#f0e5ff', color: '#6600cc' },
-      'ガソリン': { bg: '#ffffe5', color: '#cccc00' },
-      '医療': { bg: '#ffe5f0', color: '#cc0066' },
-      '交通': { bg: '#e5ffff', color: '#00cccc' },
-      '娯楽': { bg: '#ffe5ff', color: '#cc00cc' },
-      '投資': { bg: '#f5f5f5', color: '#666666' },
-      '公共料金': { bg: '#e5e5ff', color: '#0000cc' },
-      '食費': { bg: '#fff5e5', color: '#cc3300' },
-      'その他': { bg: '#f0f0f0', color: '#666666' },
-    }
-    
-    const colors = categoryColors[category] || categoryColors['その他']
-    
-    return (
-      <span style={{
-        backgroundColor: colors.bg,
-        color: colors.color,
-        padding: '4px 10px',
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: 'bold',
-      }}>
-        {category}
-      </span>
-    )
-  }
-
   const getPaymentMethodIcon = (method: string) => {
     if (method.includes('PayPayカード')) {
       return '💳'
@@ -411,6 +376,41 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [category, setCategory] = useState(transaction.category || 'その他')
   const [isSaving, setIsSaving] = useState(false)
+
+  const getCategoryBadge = (category: string | null) => {
+    if (!category) return null
+    
+    const categoryColors: Record<string, { bg: string; color: string }> = {
+      '外食': { bg: '#ffe5e5', color: '#cc0000' },
+      'コンビニ': { bg: '#e5f3ff', color: '#0066cc' },
+      'スーパー': { bg: '#e5ffe5', color: '#00cc00' },
+      'ドラッグストア': { bg: '#fff0e5', color: '#cc6600' },
+      'ショッピング': { bg: '#f0e5ff', color: '#6600cc' },
+      'ガソリン': { bg: '#ffffe5', color: '#cccc00' },
+      '医療': { bg: '#ffe5f0', color: '#cc0066' },
+      '交通': { bg: '#e5ffff', color: '#00cccc' },
+      '娯楽': { bg: '#ffe5ff', color: '#cc00cc' },
+      '投資': { bg: '#f5f5f5', color: '#666666' },
+      '公共料金': { bg: '#e5e5ff', color: '#0000cc' },
+      '食費': { bg: '#fff5e5', color: '#cc3300' },
+      'その他': { bg: '#f0f0f0', color: '#666666' },
+    }
+    
+    const colors = categoryColors[category] || categoryColors['その他']
+    
+    return (
+      <span style={{
+        backgroundColor: colors.bg,
+        color: colors.color,
+        padding: '4px 10px',
+        borderRadius: '12px',
+        fontSize: '12px',
+        fontWeight: 'bold',
+      }}>
+        {category}
+      </span>
+    )
+  }
 
   const handleSave = async () => {
     if (!onUpdateCategory) return

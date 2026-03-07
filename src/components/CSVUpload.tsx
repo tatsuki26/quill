@@ -34,11 +34,6 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
       const existingMap = new Map(
         existingMappings?.map(m => [m.merchant_name, m.category]) || []
       )
-      
-      // 手動編集された取引先のセット
-      const manualMerchants = new Set(
-        existingMappings?.filter(m => m.is_manual).map(m => m.merchant_name) || []
-      )
 
       // デフォルト非表示設定を取得
       const { data: hiddenSettings } = await supabase
