@@ -147,10 +147,28 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   // カメラのクリーンアップとビデオ要素の設定
   useEffect(() => {
     if (isCameraMode && stream && videoRef.current) {
-      videoRef.current.srcObject = stream
-      videoRef.current.play().catch(err => {
-        console.error('Error playing video:', err)
-      })
+      const video = videoRef.current
+      video.srcObject = stream
+      
+      // ビデオが読み込まれたら再生
+      const handleLoadedMetadata = () => {
+        video.play().catch(err => {
+          console.error('Error playing video:', err)
+        })
+      }
+      
+      video.addEventListener('loadedmetadata', handleLoadedMetadata)
+      
+      // 既にメタデータが読み込まれている場合は即座に再生
+      if (video.readyState >= 1) {
+        video.play().catch(err => {
+          console.error('Error playing video:', err)
+        })
+      }
+      
+      return () => {
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+      }
     }
     
     return () => {
@@ -221,16 +239,6 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
       })
       setStream(mediaStream)
       setIsCameraMode(true)
-      
-      // ビデオ要素の設定を待つ
-      setTimeout(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = mediaStream
-          videoRef.current.play().catch(err => {
-            console.error('Error playing video:', err)
-          })
-        }
-      }, 100)
     } catch (error) {
       console.error('Error accessing camera:', error)
       alert('カメラへのアクセスに失敗しました。ファイルアップロードを使用してください。')
@@ -478,8 +486,9 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'contain',
+                objectFit: 'cover',
                 backgroundColor: '#000',
+                transform: 'scaleX(-1)', // ミラー表示
               }}
             />
             {isAnalyzing && (
