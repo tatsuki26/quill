@@ -28,14 +28,14 @@ export const CATEGORIES = [
 export type Category = typeof CATEGORIES[number]
 
 export async function categorizeMerchant(merchantName: string): Promise<string> {
-  // 最新のモデル名を使用（gemini-1.5-flashが推奨）
+  // Gemini 2.5 Flash-Liteを使用
   let model
   try {
-    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
   } catch (e) {
-    console.warn('Failed to use gemini-1.5-flash, trying gemini-1.5-pro:', e)
+    console.warn('Failed to use gemini-2.5-flash-lite, trying gemini-1.5-flash:', e)
     try {
-      model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
     } catch (e2) {
       console.error('Failed to initialize Gemini model:', e2)
       return 'その他'
@@ -127,14 +127,14 @@ export async function categorizeMerchantsBatch(merchantNames: string[]): Promise
 }
 
 async function categorizeMerchantsBatchInternal(merchantNames: string[]): Promise<Record<string, string>> {
-  // 最新のモデル名を使用（gemini-1.5-flashが推奨）
+  // Gemini 2.5 Flash-Liteを使用
   let model
   try {
-    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' })
   } catch (e) {
-    console.warn('Failed to use gemini-1.5-flash, trying gemini-1.5-pro:', e)
+    console.warn('Failed to use gemini-2.5-flash-lite, trying gemini-1.5-flash:', e)
     try {
-      model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+      model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
     } catch (e2) {
       console.error('Failed to initialize Gemini model:', e2)
       // フォールバック: 個別分類
