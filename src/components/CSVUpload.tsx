@@ -82,18 +82,34 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
 
       // 取引データにカテゴリと非表示フラグを追加
       setProgress('データベースに保存中...')
-      const transactionsToInsert = transactions.map(tx => ({
+      const transactionsWithMetadata = transactions.map(tx => ({
         ...tx,
         category: existingMap.get(tx.merchant) || null,
         is_hidden: hiddenPaymentMethods.has(tx.payment_method) ||
                    hiddenTransactionTypes.has(tx.transaction_type),
       }))
 
+      // 同じtransaction_numberの重複を除去（最新のデータを優先）
+      const transactionMap = new Map<string, typeof transactionsWithMetadata[0]>()
+      for (const tx of transactionsWithMetadata) {
+        const existing = transactionMap.get(tx.transaction_number)
+        if (!existing || new Date(tx.transaction_date) > new Date(existing.transaction_date)) {
+          transactionMap.set(tx.transaction_number, tx)
+        }
+      }
+      const transactionsToInsert = Array.from(transactionMap.values())
+
       // バッチで挿入（Supabaseの制限を考慮して分割）
       const batchSize = 100
       for (let i = 0; i < transactionsToInsert.length; i += batchSize) {
         const batch = transactionsToInsert.slice(i, i + batchSize)
-        const { error } = await supabase.from('transactions').upsert(batch, {
+        
+        // バッチ内の重複もチェック
+        const uniqueBatch = Array.from(
+          new Map(batch.map(tx => [tx.transaction_number, tx])).values()
+        )
+        
+        const { error } = await supabase.from('transactions').upsert(uniqueBatch, {
           onConflict: 'transaction_number',
         })
 
@@ -112,7 +128,29 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
       }, 1000)
     } catch (error) {
       console.error('Upload error:', error)
-      alert(`アップロードエラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
+      
+      // より詳細なエラーメッセージを生成
+      let errorMessage = '不明なエラーが発生しました'
+      
+      if (error instanceof Error) {
+        errorMessage = error.message
+      } else if (typeof error === 'object' && error !== null) {
+        // Supabaseのエラーオブジェクトの場合
+        if ('message' in error) {
+          errorMessage = String(error.message)
+        } else if ('error' in error && typeof error.error === 'object' && error.error !== null && 'message' in error.error) {
+          errorMessage = String(error.error.message)
+        }
+      }
+      
+      // エラーの詳細をコンソールに出力
+      console.error('Error details:', {
+        error,
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      })
+      
+      alert(`アップロードエラー: ${errorMessage}\n\n詳細はブラウザのコンソール（F12）を確認してください。`)
       setUploading(false)
       setProgress('')
     }
