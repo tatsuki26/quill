@@ -146,55 +146,89 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
   // カメラのクリーンアップとビデオ要素の設定
   useEffect(() => {
-    if (isCameraMode && stream) {
-      // ビデオ要素が確実に存在するまで待つ
-      const setupVideo = () => {
-        if (videoRef.current) {
-          const video = videoRef.current
-          console.log('Setting up video element', { stream, video })
-          
-          // ストリームを設定
-          video.srcObject = stream
-          
-          // ビデオが読み込まれたら再生
-          const handleLoadedMetadata = () => {
-            console.log('Video metadata loaded')
-            video.play().catch(err => {
-              console.error('Error playing video:', err)
-            })
-          }
-          
-          const handleCanPlay = () => {
-            console.log('Video can play')
-            video.play().catch(err => {
-              console.error('Error playing video:', err)
-            })
-          }
-          
-          video.addEventListener('loadedmetadata', handleLoadedMetadata)
-          video.addEventListener('canplay', handleCanPlay)
-          
-          // 即座に再生を試みる
+    if (!isCameraMode || !stream) return
+    
+    // ビデオ要素が確実に存在するまで待つ
+    const setupVideo = () => {
+      if (videoRef.current) {
+        const video = videoRef.current
+        console.log('Setting up video element', { 
+          stream: { 
+            id: stream.id, 
+            active: stream.active,
+            tracks: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }))
+          }, 
+          video 
+        })
+        
+        // ストリームを設定
+        video.srcObject = stream
+        
+        // ビデオが読み込まれたら再生
+        const handleLoadedMetadata = () => {
+          console.log('Video metadata loaded', { 
+            videoWidth: video.videoWidth, 
+            videoHeight: video.videoHeight,
+            readyState: video.readyState
+          })
           video.play().catch(err => {
+            console.error('Error playing video:', err)
+          })
+        }
+        
+        const handleCanPlay = () => {
+          console.log('Video can play', { 
+            videoWidth: video.videoWidth, 
+            videoHeight: video.videoHeight 
+          })
+          video.play().catch(err => {
+            console.error('Error playing video:', err)
+          })
+        }
+        
+        const handlePlay = () => {
+          console.log('Video is playing')
+        }
+        
+        const handleError = (e: any) => {
+          console.error('Video error:', e)
+        }
+        
+        video.addEventListener('loadedmetadata', handleLoadedMetadata)
+        video.addEventListener('canplay', handleCanPlay)
+        video.addEventListener('play', handlePlay)
+        video.addEventListener('error', handleError)
+        
+        // 即座に再生を試みる
+        const playPromise = video.play()
+        if (playPromise !== undefined) {
+          playPromise.catch(err => {
             console.error('Error playing video immediately:', err)
           })
-          
-          return () => {
-            video.removeEventListener('loadedmetadata', handleLoadedMetadata)
-            video.removeEventListener('canplay', handleCanPlay)
-          }
-        } else {
-          console.log('Video ref not available yet, retrying...')
-          setTimeout(setupVideo, 100)
         }
+        
+        return () => {
+          console.log('Cleaning up video event listeners')
+          video.removeEventListener('loadedmetadata', handleLoadedMetadata)
+          video.removeEventListener('canplay', handleCanPlay)
+          video.removeEventListener('play', handlePlay)
+          video.removeEventListener('error', handleError)
+        }
+      } else {
+        console.log('Video ref not available yet, retrying...')
+        setTimeout(setupVideo, 100)
       }
-      
-      setupVideo()
     }
     
+    const cleanup = setupVideo()
+    
+    // クリーンアップ関数（コンポーネントのアンマウント時のみ実行）
     return () => {
-      if (stream) {
-        console.log('Cleaning up stream')
+      console.log('useEffect cleanup - isCameraMode:', isCameraMode)
+      if (cleanup) cleanup()
+      // ストリームのクリーンアップは、カメラモードが無効になった時のみ
+      if (!isCameraMode && stream) {
+        console.log('Stopping stream tracks')
         stream.getTracks().forEach(track => {
           track.stop()
           console.log('Stopped track:', track.kind)
@@ -282,14 +316,19 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   }
 
   const stopCamera = () => {
+    console.log('Stopping camera')
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+      videoRef.current.pause()
+    }
     if (stream) {
-      stream.getTracks().forEach(track => track.stop())
+      stream.getTracks().forEach(track => {
+        track.stop()
+        console.log('Stopped track:', track.kind)
+      })
       setStream(null)
     }
     setIsCameraMode(false)
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
   }
 
   const captureAndAnalyze = async () => {
@@ -526,20 +565,34 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
                 objectFit: 'cover',
                 backgroundColor: '#000',
                 transform: 'scaleX(-1)', // ミラー表示
+                display: 'block',
               }}
               onLoadedMetadata={(e) => {
-                console.log('Video metadata loaded in JSX', e)
+                console.log('Video metadata loaded in JSX', {
+                  videoWidth: e.currentTarget.videoWidth,
+                  videoHeight: e.currentTarget.videoHeight,
+                  readyState: e.currentTarget.readyState
+                })
                 const video = e.currentTarget
                 video.play().catch(err => {
                   console.error('Error playing video in onLoadedMetadata:', err)
                 })
               }}
               onCanPlay={(e) => {
-                console.log('Video can play in JSX', e)
+                console.log('Video can play in JSX', {
+                  videoWidth: e.currentTarget.videoWidth,
+                  videoHeight: e.currentTarget.videoHeight
+                })
                 const video = e.currentTarget
                 video.play().catch(err => {
                   console.error('Error playing video in onCanPlay:', err)
                 })
+              }}
+              onPlay={(e) => {
+                console.log('Video is playing in JSX')
+              }}
+              onError={(e) => {
+                console.error('Video error in JSX:', e)
               }}
             />
             {isAnalyzing && (
