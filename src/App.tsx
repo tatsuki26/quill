@@ -258,12 +258,13 @@ function App() {
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* Header */}
       <div style={{
-        backgroundColor: '#1a1a1a',
+        backgroundColor: '#2a2a2a',
         color: 'white',
         padding: '1rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        borderBottom: '1px solid #1a1a1a',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
           <button
@@ -293,10 +294,10 @@ function App() {
             src="/logo.png"
             alt="Quill"
             style={{
-              maxHeight: '180px',
+              maxHeight: '48px',
               height: 'auto',
               width: 'auto',
-              maxWidth: '400px',
+              maxWidth: '200px',
               objectFit: 'contain',
             }}
             onError={(e) => {
