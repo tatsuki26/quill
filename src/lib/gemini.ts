@@ -198,14 +198,14 @@ ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
     }
     
     try {
-      const categories = JSON.parse(jsonText) as Record<string, string>
+      const categoryResults = JSON.parse(jsonText) as Record<string, string>
       const categoryMap: Record<string, string> = {}
       let successCount = 0
       let fallbackCount = 0
       
       merchantNames.forEach((name, index) => {
         const key = String(index + 1)
-        let category = categories[key] || categories[name] || null
+        let category = categoryResults[key] || categoryResults[name] || null
         
         if (!category) {
           console.warn(`[Gemini Batch] No category found for "${name}" (key: ${key})`)
@@ -228,7 +228,7 @@ ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
         }
         
         // 部分一致で確認（大文字小文字を無視）
-        const matchedCategory = categories.find(cat => {
+        const matchedCategory = categories.find((cat: string) => {
           const catLower = cat.toLowerCase()
           const categoryLower = category.toLowerCase()
           return categoryLower === catLower || 

@@ -34,18 +34,6 @@ interface TransactionListProps {
 }
 
 export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }: TransactionListProps) {
-  const [categories, setCategories] = useState<Category[]>([])
-  const [categoryNames, setCategoryNames] = useState<string[]>([])
-
-  useEffect(() => {
-    loadCategories()
-  }, [])
-
-  const loadCategories = async () => {
-    await loadGlobalCategories()
-    setCategories(globalCategories)
-    setCategoryNames(globalCategoryNames)
-  }
 
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
