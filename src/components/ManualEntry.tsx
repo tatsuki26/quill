@@ -164,32 +164,64 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
         // ストリームを設定
         video.srcObject = stream
         
-        // 強制的にスタイルを設定（親要素に依存しない）
-        video.style.position = 'fixed'
-        video.style.top = '0'
-        video.style.left = '0'
-        video.style.right = '0'
-        video.style.bottom = '0'
-        video.style.width = window.innerWidth + 'px'
-        video.style.height = window.innerHeight + 'px'
-        video.style.minWidth = window.innerWidth + 'px'
-        video.style.minHeight = window.innerHeight + 'px'
-        video.style.objectFit = 'cover'
-        video.style.backgroundColor = '#000'
-        video.style.transform = 'scaleX(-1)'
-        video.style.zIndex = '0'
-        video.style.display = 'block'
+        // 強制的にスタイルを設定（親要素に完全に依存しない）
+        const setVideoSize = () => {
+          const w = window.innerWidth
+          const h = window.innerHeight
+          video.style.position = 'fixed'
+          video.style.top = '0px'
+          video.style.left = '0px'
+          video.style.width = w + 'px'
+          video.style.height = h + 'px'
+          video.style.minWidth = w + 'px'
+          video.style.minHeight = h + 'px'
+          video.style.maxWidth = w + 'px'
+          video.style.maxHeight = h + 'px'
+          video.style.objectFit = 'cover'
+          video.style.backgroundColor = '#000'
+          video.style.transform = 'scaleX(-1)'
+          video.style.zIndex = '0'
+          video.style.display = 'block'
+          video.style.visibility = 'visible'
+          video.style.opacity = '1'
+          console.log('Video style set:', {
+            width: video.style.width,
+            height: video.style.height,
+            position: video.style.position
+          })
+        }
         
-        // 強制的にサイズを再計算
+        setVideoSize()
+        
+        // 複数回試行して確実にサイズを設定
         setTimeout(() => {
           const rect = video.getBoundingClientRect()
           console.log('Video rect after style setting:', rect)
           if (rect.width === 0 || rect.height === 0) {
-            console.error('Video still has zero size, forcing dimensions')
-            video.style.width = window.innerWidth + 'px'
-            video.style.height = window.innerHeight + 'px'
-            video.style.minWidth = window.innerWidth + 'px'
-            video.style.minHeight = window.innerHeight + 'px'
+            console.error('Video still has zero size, forcing dimensions again')
+            setVideoSize()
+            // もう一度試行
+            setTimeout(() => {
+              const rect2 = video.getBoundingClientRect()
+              if (rect2.width === 0 || rect2.height === 0) {
+                console.error('Video STILL has zero size, using canvas approach')
+                // 最後の手段：canvasに描画
+                const canvas = document.createElement('canvas')
+                canvas.width = window.innerWidth
+                canvas.height = window.innerHeight
+                const ctx = canvas.getContext('2d')
+                if (ctx) {
+                  const drawFrame = () => {
+                    if (video.videoWidth > 0 && video.videoHeight > 0) {
+                      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+                    }
+                    requestAnimationFrame(drawFrame)
+                  }
+                  drawFrame()
+                  // canvasをvideoの代わりに表示する方法を検討
+                }
+              }
+            }, 100)
           }
         }, 100)
         
@@ -583,11 +615,15 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             playsInline
             muted
             style={{
-              position: 'absolute',
+              position: 'fixed',
               top: 0,
               left: 0,
-              width: '100%',
-              height: '100%',
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh',
+              minWidth: '100vw',
+              minHeight: '100vh',
               objectFit: 'cover',
               backgroundColor: '#000',
               transform: 'scaleX(-1)',
