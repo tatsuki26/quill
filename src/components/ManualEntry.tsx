@@ -164,17 +164,34 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
         // ストリームを設定
         video.srcObject = stream
         
-        // 強制的にスタイルを設定
-        video.style.position = 'absolute'
+        // 強制的にスタイルを設定（親要素に依存しない）
+        video.style.position = 'fixed'
         video.style.top = '0'
         video.style.left = '0'
-        video.style.width = '100vw'
-        video.style.height = '100vh'
+        video.style.right = '0'
+        video.style.bottom = '0'
+        video.style.width = window.innerWidth + 'px'
+        video.style.height = window.innerHeight + 'px'
+        video.style.minWidth = window.innerWidth + 'px'
+        video.style.minHeight = window.innerHeight + 'px'
         video.style.objectFit = 'cover'
         video.style.backgroundColor = '#000'
         video.style.transform = 'scaleX(-1)'
         video.style.zIndex = '0'
         video.style.display = 'block'
+        
+        // 強制的にサイズを再計算
+        setTimeout(() => {
+          const rect = video.getBoundingClientRect()
+          console.log('Video rect after style setting:', rect)
+          if (rect.width === 0 || rect.height === 0) {
+            console.error('Video still has zero size, forcing dimensions')
+            video.style.width = window.innerWidth + 'px'
+            video.style.height = window.innerHeight + 'px'
+            video.style.minWidth = window.innerWidth + 'px'
+            video.style.minHeight = window.innerHeight + 'px'
+          }
+        }, 100)
         
         // ビデオが読み込まれたら再生
         const handleLoadedMetadata = () => {
@@ -614,8 +631,12 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
                 position: 'fixed',
                 top: 0,
                 left: 0,
+                right: 0,
+                bottom: 0,
                 width: '100vw',
                 height: '100vh',
+                minWidth: '100vw',
+                minHeight: '100vh',
                 objectFit: 'cover',
                 backgroundColor: '#000',
                 transform: 'scaleX(-1)',
