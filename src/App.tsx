@@ -15,7 +15,6 @@ import { CategoryManagement } from './components/CategoryManagement'
 import { AssetManagement } from './components/AssetManagement'
 import { ManualEntry } from './components/ManualEntry'
 import { SettingsPage } from './components/SettingsPage'
-import { Plus } from 'lucide-react'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
