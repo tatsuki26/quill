@@ -27,7 +27,7 @@ const COLOR_PALETTE = [
   { bg: '#f3e5f5', text: '#6a1b9a', name: '深紫' },
 ]
 
-export function CategoryManagement({ onClose }: CategoryManagementProps) {
+export function CategoryManagement({ onClose: _onClose }: CategoryManagementProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)

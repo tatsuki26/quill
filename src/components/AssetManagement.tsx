@@ -7,7 +7,7 @@ interface AssetManagementProps {
   onClose?: () => void
 }
 
-export function AssetManagement({ onClose }: AssetManagementProps) {
+export function AssetManagement({ onClose: _onClose }: AssetManagementProps) {
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
