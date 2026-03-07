@@ -1,0 +1,164 @@
+import { useState } from 'react'
+import { Upload, Loader2 } from 'lucide-react'
+import { parseCSV, convertToTransaction } from '../utils/csvParser'
+import { supabase } from '../lib/supabase'
+import { categorizeMerchantsBatch } from '../lib/gemini'
+import { Transaction } from '../types'
+
+interface CSVUploadProps {
+  onUploadComplete: () => void
+}
+
+export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState('')
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setProgress('CSVファイルを読み込んでいます...')
+
+    try {
+      const text = await file.text()
+      const rows = parseCSV(text)
+      setProgress(`${rows.length}件の取引を処理中...`)
+
+      // 取引データを変換
+      const transactions = rows.map((row, index) => convertToTransaction(row, index))
+
+      // ユニークな取引先名を取得
+      const uniqueMerchants = Array.from(new Set(transactions.map(tx => tx.merchant)))
+      setProgress(`${uniqueMerchants.length}件の取引先を分類中...`)
+
+      // 既存のカテゴリマッピングを取得
+      const { data: existingMappings } = await supabase
+        .from('category_mappings')
+        .select('merchant_name, category')
+
+      const existingMap = new Map(
+        existingMappings?.map(m => [m.merchant_name, m.category]) || []
+      )
+
+      // 未分類の取引先を抽出
+      const uncategorizedMerchants = uniqueMerchants.filter(
+        merchant => !existingMap.has(merchant)
+      )
+
+      // AIでカテゴリ分類
+      if (uncategorizedMerchants.length > 0) {
+        setProgress(`AIで${uncategorizedMerchants.length}件の取引先を分類中...`)
+        const categories = await categorizeMerchantsBatch(uncategorizedMerchants)
+
+        // カテゴリマッピングを保存
+        const mappingsToInsert = Object.entries(categories).map(([merchant, category]) => ({
+          merchant_name: merchant,
+          category,
+        }))
+
+        if (mappingsToInsert.length > 0) {
+          await supabase.from('category_mappings').upsert(mappingsToInsert, {
+            onConflict: 'merchant_name',
+          })
+        }
+
+        // 既存マップに追加
+        Object.entries(categories).forEach(([merchant, category]) => {
+          existingMap.set(merchant, category)
+        })
+      }
+
+      // デフォルト非表示設定を取得
+      const { data: hiddenSettings } = await supabase
+        .from('default_hidden_settings')
+        .select('setting_type, value')
+
+      const hiddenPaymentMethods = new Set(
+        hiddenSettings?.filter(s => s.setting_type === 'payment_method').map(s => s.value) || []
+      )
+      const hiddenTransactionTypes = new Set(
+        hiddenSettings?.filter(s => s.setting_type === 'transaction_type').map(s => s.value) || []
+      )
+
+      // 取引データにカテゴリと非表示フラグを追加
+      setProgress('データベースに保存中...')
+      const transactionsToInsert = transactions.map(tx => ({
+        ...tx,
+        category: existingMap.get(tx.merchant) || null,
+        is_hidden: hiddenPaymentMethods.has(tx.payment_method) ||
+                   hiddenTransactionTypes.has(tx.transaction_type),
+      }))
+
+      // バッチで挿入（Supabaseの制限を考慮して分割）
+      const batchSize = 100
+      for (let i = 0; i < transactionsToInsert.length; i += batchSize) {
+        const batch = transactionsToInsert.slice(i, i + batchSize)
+        const { error } = await supabase.from('transactions').upsert(batch, {
+          onConflict: 'transaction_number',
+        })
+
+        if (error) {
+          throw error
+        }
+
+        setProgress(`${Math.min(i + batchSize, transactionsToInsert.length)}/${transactionsToInsert.length}件を保存しました...`)
+      }
+
+      setProgress('アップロード完了！')
+      setTimeout(() => {
+        onUploadComplete()
+        setUploading(false)
+        setProgress('')
+      }, 1000)
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert(`アップロードエラー: ${error instanceof Error ? error.message : '不明なエラー'}`)
+      setUploading(false)
+      setProgress('')
+    }
+  }
+
+  return (
+    <div style={{
+      padding: '1rem',
+      border: '2px dashed #ddd',
+      borderRadius: '8px',
+      textAlign: 'center',
+      backgroundColor: uploading ? '#f9f9f9' : 'white',
+    }}>
+      <input
+        type="file"
+        accept=".csv"
+        onChange={handleFileUpload}
+        disabled={uploading}
+        style={{ display: 'none' }}
+        id="csv-upload"
+      />
+      <label
+        htmlFor="csv-upload"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.5rem',
+          cursor: uploading ? 'not-allowed' : 'pointer',
+        }}
+      >
+        {uploading ? (
+          <>
+            <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
+            <div style={{ fontSize: '14px', color: '#666' }}>{progress}</div>
+          </>
+        ) : (
+          <>
+            <Upload size={32} color="#00C300" />
+            <div style={{ fontSize: '14px', color: '#666' }}>
+              CSVファイルをアップロード
+            </div>
+          </>
+        )}
+      </label>
+    </div>
+  )
+}
