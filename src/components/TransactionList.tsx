@@ -205,7 +205,6 @@ export function TransactionList({ transactions, isAdmin = false, onUpdateMemo }:
                   
                   <MemoField
                     transaction={tx}
-                    isAdmin={isAdmin}
                     onUpdateMemo={onUpdateMemo}
                   />
                 </div>
@@ -252,11 +251,10 @@ export function TransactionList({ transactions, isAdmin = false, onUpdateMemo }:
 
 interface MemoFieldProps {
   transaction: Transaction
-  isAdmin: boolean
   onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
 }
 
-function MemoField({ transaction, isAdmin, onUpdateMemo }: MemoFieldProps) {
+function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [memo, setMemo] = useState(transaction.memo || '')
   const [isSaving, setIsSaving] = useState(false)
