@@ -9,11 +9,17 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey)
 
+export interface ReceiptItem {
+  name: string
+  amount: number
+}
+
 export interface ReceiptParseResult {
   date: string | null
   amount: number | null
   merchant: string | null
   category: string | null
+  items: ReceiptItem[] | null
 }
 
 /**
@@ -30,7 +36,7 @@ export async function parseReceiptImage(imageBase64: string): Promise<ReceiptPar
       model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
     } catch (e2) {
       console.error('Failed to initialize Gemini model:', e2)
-      return { date: null, amount: null, merchant: null, category: null }
+      return { date: null, amount: null, merchant: null, category: null, items: null }
     }
   }
 
@@ -92,7 +98,7 @@ export async function parseReceiptImage(imageBase64: string): Promise<ReceiptPar
         jsonText = jsonMatch[0]
       } else {
         console.warn('[Gemini Vision] No JSON found in response')
-        return { date: null, amount: null, merchant: null, category: null }
+        return { date: null, amount: null, merchant: null, category: null, items: null }
       }
     }
 
@@ -126,10 +132,22 @@ export async function parseReceiptImage(imageBase64: string): Promise<ReceiptPar
       }
     }
 
+    // itemsの検証と正規化
+    if (parsed.items && Array.isArray(parsed.items)) {
+      parsed.items = parsed.items
+        .filter(item => item && item.name && typeof item.amount === 'number')
+        .map(item => ({
+          name: String(item.name).trim(),
+          amount: Number(item.amount)
+        }))
+    } else {
+      parsed.items = null
+    }
+
     return parsed
   } catch (error) {
     console.error('[Gemini Vision] Error parsing receipt:', error)
-    return { date: null, amount: null, merchant: null, category: null }
+    return { date: null, amount: null, merchant: null, category: null, items: null }
   }
 }
 

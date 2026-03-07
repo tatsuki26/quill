@@ -15,6 +15,7 @@ import { CategoryManagement } from './components/CategoryManagement'
 import { AssetManagement } from './components/AssetManagement'
 import { ManualEntry } from './components/ManualEntry'
 import { SettingsPage } from './components/SettingsPage'
+import { TransactionDetail } from './components/TransactionDetail'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
@@ -29,6 +30,7 @@ function App() {
   const [showAssetManagement, setShowAssetManagement] = useState(false)
   const [showSettingsPage, setShowSettingsPage] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -417,6 +419,7 @@ function App() {
               transactions={filteredTransactions}
               onUpdateMemo={handleUpdateMemo}
               onUpdateCategory={handleUpdateCategory}
+              onShowDetail={setSelectedTransaction}
             />
           )}
 
@@ -474,8 +477,15 @@ function App() {
         />
       )}
 
+      {selectedTransaction && (
+        <TransactionDetail
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransaction(null)}
+        />
+      )}
+
       {/* FABボタン（右下） */}
-      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && (
+      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && (
         <button
           onClick={() => setShowManualEntry(true)}
           style={{

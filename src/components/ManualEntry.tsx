@@ -24,6 +24,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   const [memo, setMemo] = useState('')
   const [receiptImage, setReceiptImage] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [receiptDetails, setReceiptDetails] = useState<{ items: Array<{ name: string; amount: number }> } | null>(null)
 
   const [categories, setCategories] = useState<Category[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
@@ -118,6 +119,12 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
       if (result.amount) setAmount(String(result.amount))
       if (result.merchant) setMerchant(result.merchant)
       if (result.category) setCategory(result.category)
+      // 商品詳細を保存
+      if (result.items && result.items.length > 0) {
+        setReceiptDetails({ items: result.items })
+      } else {
+        setReceiptDetails(null)
+      }
     } catch (error) {
       console.error('Error analyzing receipt:', error)
       alert('レシートの解析に失敗しました。手動で入力してください。')
@@ -179,6 +186,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           memo: memo.trim() || null,
           asset: asset,
           receipt_image: receiptImage,
+          details: receiptDetails,
         })
 
       if (error) throw error

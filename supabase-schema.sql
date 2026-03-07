@@ -21,6 +21,7 @@ CREATE TABLE transactions (
   memo TEXT,
   asset TEXT,
   receipt_image TEXT,
+  details JSONB,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -81,6 +82,7 @@ CREATE INDEX idx_transactions_category ON transactions(category);
 CREATE INDEX idx_transactions_hidden ON transactions(is_hidden);
 CREATE INDEX idx_transactions_type ON transactions(transaction_type);
 CREATE INDEX idx_transactions_payment_method ON transactions(payment_method);
+CREATE INDEX idx_transactions_details ON transactions USING GIN (details);
 
 -- RLS (Row Level Security) ポリシー
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;

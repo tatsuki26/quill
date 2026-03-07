@@ -49,5 +49,6 @@ export function convertToTransaction(row: CSVRow): Omit<Transaction, 'id' | 'cat
     memo: null,
     asset: 'PayPay',
     receipt_image: null,
+    details: null,
   }
 }

@@ -31,6 +31,7 @@ interface TransactionListProps {
   transactions: Transaction[]
   onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
   onUpdateCategory?: (id: string, merchant: string, category: string) => Promise<void>
+  onShowDetail?: (transaction: Transaction) => void
 }
 
 export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }: TransactionListProps) {
@@ -133,12 +134,24 @@ export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }
             {txs.map((tx) => (
                 <div
                 key={tx.id}
+                onClick={() => onShowDetail && onShowDetail(tx)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   padding: '1rem',
                   borderBottom: '1px solid #f0f0f0',
                   backgroundColor: 'white',
+                  cursor: onShowDetail ? 'pointer' : 'default',
+                }}
+                onMouseEnter={(e) => {
+                  if (onShowDetail) {
+                    e.currentTarget.style.backgroundColor = '#f9f9f9'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (onShowDetail) {
+                    e.currentTarget.style.backgroundColor = 'white'
+                  }
                 }}
               >
                 <div style={{ marginRight: '1rem' }}>

@@ -18,6 +18,7 @@ export interface Transaction {
   memo: string | null
   asset: string | null
   receipt_image: string | null
+  details: { items: Array<{ name: string; amount: number }> } | null
   created_at: string
   updated_at: string
 }
