@@ -1080,6 +1080,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             キャンセル
           </button>
         </div>
+        </div>
       </div>
     </>
   )
