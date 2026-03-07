@@ -512,6 +512,9 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           zIndex: 2000,
           display: 'flex',
           flexDirection: 'column',
+          width: '100vw',
+          height: '100vh',
+          overflow: 'hidden',
         }}>
           {/* ヘッダー */}
           <div style={{
@@ -552,6 +555,9 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             justifyContent: 'center',
             position: 'relative',
             overflow: 'hidden',
+            width: '100%',
+            height: '100%',
+            minHeight: 0,
           }}>
             <video
               ref={videoRef}
@@ -561,11 +567,19 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
               style={{
                 width: '100%',
                 height: '100%',
+                minWidth: '100%',
                 minHeight: '100%',
+                maxWidth: '100%',
+                maxHeight: '100%',
                 objectFit: 'cover',
                 backgroundColor: '#000',
                 transform: 'scaleX(-1)', // ミラー表示
                 display: 'block',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
               }}
               onLoadedMetadata={(e) => {
                 console.log('Video metadata loaded in JSX', {
