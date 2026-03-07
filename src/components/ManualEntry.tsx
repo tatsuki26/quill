@@ -164,6 +164,18 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
         // ストリームを設定
         video.srcObject = stream
         
+        // 強制的にスタイルを設定
+        video.style.position = 'absolute'
+        video.style.top = '0'
+        video.style.left = '0'
+        video.style.width = '100vw'
+        video.style.height = '100vh'
+        video.style.objectFit = 'cover'
+        video.style.backgroundColor = '#000'
+        video.style.transform = 'scaleX(-1)'
+        video.style.zIndex = '0'
+        video.style.display = 'block'
+        
         // ビデオが読み込まれたら再生
         const handleLoadedMetadata = () => {
           console.log('Video metadata loaded', { 
@@ -599,21 +611,15 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
               playsInline
               muted
               style={{
-                width: '100%',
-                height: '100%',
-                minWidth: '100%',
-                minHeight: '100%',
-                maxWidth: '100%',
-                maxHeight: '100%',
-                objectFit: 'cover',
-                backgroundColor: '#000',
-                transform: 'scaleX(-1)', // ミラー表示
-                display: 'block',
-                position: 'absolute',
+                position: 'fixed',
                 top: 0,
                 left: 0,
-                right: 0,
-                bottom: 0,
+                width: '100vw',
+                height: '100vh',
+                objectFit: 'cover',
+                backgroundColor: '#000',
+                transform: 'scaleX(-1)',
+                zIndex: 0,
               }}
               onLoadedMetadata={(e) => {
                 console.log('Video metadata loaded in JSX', {
