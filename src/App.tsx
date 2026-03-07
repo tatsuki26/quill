@@ -258,13 +258,13 @@ function App() {
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* Header */}
       <div style={{
-        backgroundColor: '#2a2a2a',
+        backgroundColor: '#00a000',
         color: 'white',
         padding: '1rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottom: '1px solid #1a1a1a',
+        borderBottom: '1px solid #008000',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
           <button
@@ -291,7 +291,7 @@ function App() {
           flex: 1,
         }}>
           <img
-            src="/logo.png"
+            src="/logo-quill.png"
             alt="Quill"
             style={{
               maxHeight: '48px',
@@ -302,9 +302,9 @@ function App() {
             }}
             onError={(e) => {
               console.error('ロゴの読み込みに失敗しました:', e)
-              // フォールバック: SVGを試す
-              if (e.currentTarget.src.endsWith('.png')) {
-                e.currentTarget.src = '/logo.svg'
+              // フォールバック: 通常のロゴを試す
+              if (e.currentTarget.src.endsWith('logo-quill.png')) {
+                e.currentTarget.src = '/logo.png'
               } else {
                 e.currentTarget.style.display = 'none'
               }
@@ -491,19 +491,38 @@ function App() {
             width: '56px',
             height: '56px',
             borderRadius: '50%',
-            backgroundColor: '#1a1a1a',
-            color: 'white',
+            backgroundColor: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            boxShadow: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
+            padding: 0,
           }}
           title="明細を追加"
         >
-          <Plus size={24} />
+          <img
+            src="/logo.png"
+            alt="明細を追加"
+            style={{
+              width: '56px',
+              height: '56px',
+              objectFit: 'contain',
+            }}
+            onError={(e) => {
+              console.error('ロゴの読み込みに失敗しました:', e)
+              // フォールバック: プラスアイコンを表示
+              e.currentTarget.style.display = 'none'
+              const button = e.currentTarget.parentElement
+              if (button) {
+                button.innerHTML = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>'
+                button.style.backgroundColor = '#00C300'
+                button.style.color = 'white'
+              }
+            }}
+          />
         </button>
       )}
     </div>
