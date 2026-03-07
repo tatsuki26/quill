@@ -280,28 +280,23 @@ function App() {
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <img
-              src="/logo.svg"
-              alt="Quill"
-              style={{
-                height: '32px',
-                width: 'auto',
-              }}
-            />
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <img
-              src="/logo.svg"
+              src="/logo.png"
               alt="Quill"
               style={{
                 height: '32px',
                 width: 'auto',
               }}
               onError={(e) => {
-                // ロゴが読み込めない場合は非表示にする
-                e.currentTarget.style.display = 'none'
+                console.error('ロゴの読み込みに失敗しました:', e)
+                // フォールバック: SVGを試す
+                if (e.currentTarget.src.endsWith('.png')) {
+                  e.currentTarget.src = '/logo.svg'
+                } else {
+                  e.currentTarget.style.display = 'none'
+                }
               }}
             />
             <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>取引履歴</h1>
-          </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
