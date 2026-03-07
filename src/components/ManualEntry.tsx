@@ -49,6 +49,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     asset: false,
   })
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  const [hasAutoSaved, setHasAutoSaved] = useState(false)
 
   useEffect(() => {
     loadCategories()
