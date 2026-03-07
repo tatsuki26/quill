@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Category } from '../types'
 
 interface CategoryManagementProps {
-  onClose: () => void
+  onClose?: () => void
 }
 
 // カラーパレット

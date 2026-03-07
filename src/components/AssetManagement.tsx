@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Asset } from '../types'
 
 interface AssetManagementProps {
-  onClose: () => void
+  onClose?: () => void
 }
 
 export function AssetManagement({ onClose }: AssetManagementProps) {
