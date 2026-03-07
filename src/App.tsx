@@ -10,6 +10,7 @@ import { supabase } from './lib/supabase'
 import { Transaction, FilterType } from './types'
 import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut } from 'lucide-react'
 import { DefaultHiddenSettings } from './components/DefaultHiddenSettings'
+import { RecategorizeButton } from './components/RecategorizeButton'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
@@ -286,6 +287,12 @@ function App() {
         </div>
       )}
 
+      {!showUpload && !showReport && isAdmin && (
+        <div style={{ padding: '1rem', borderBottom: '1px solid #f0f0f0' }}>
+          <RecategorizeButton onComplete={loadTransactions} />
+        </div>
+      )}
+
       {showReport ? (
         <UsageReport transactions={filteredTransactions} />
       ) : (
@@ -326,7 +333,10 @@ function App() {
       )}
 
       {showSettings && isAdmin && (
-        <DefaultHiddenSettings onClose={() => setShowSettings(false)} />
+        <DefaultHiddenSettings
+          onClose={() => setShowSettings(false)}
+          onRecategorizeComplete={loadTransactions}
+        />
       )}
     </div>
   )

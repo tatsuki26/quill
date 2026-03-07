@@ -73,7 +73,7 @@ export function Login() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="tatsukichi2662 または rina2910"
+              placeholder="ユーザー名を入力"
               required
               style={{
                 width: '100%',

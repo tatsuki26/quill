@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { DefaultHiddenSetting } from '../types'
 import { X } from 'lucide-react'
+import { RecategorizeButton } from './RecategorizeButton'
 
 interface DefaultHiddenSettingsProps {
   onClose: () => void
+  onRecategorizeComplete?: () => void
 }
 
-export function DefaultHiddenSettings({ onClose }: DefaultHiddenSettingsProps) {
+export function DefaultHiddenSettings({ onClose, onRecategorizeComplete }: DefaultHiddenSettingsProps) {
   const [settings, setSettings] = useState<DefaultHiddenSetting[]>([])
   const [newSettingType, setNewSettingType] = useState<'payment_method' | 'transaction_type'>('payment_method')
   const [newSettingValue, setNewSettingValue] = useState('')
@@ -113,6 +115,17 @@ export function DefaultHiddenSettings({ onClose }: DefaultHiddenSettingsProps) {
           >
             <X size={24} />
           </button>
+        </div>
+
+        <div style={{ marginBottom: '1.5rem', padding: '1rem', backgroundColor: '#f0f8ff', borderRadius: '8px' }}>
+          <h3 style={{ marginBottom: '0.5rem', fontSize: '16px', fontWeight: 'bold' }}>カテゴリ再分類</h3>
+          <p style={{ marginBottom: '0.5rem', fontSize: '12px', color: '#666' }}>
+            全ての取引先を新しいカテゴリ定義で再分類します。
+          </p>
+          <RecategorizeButton onComplete={() => {
+            loadSettings()
+            onRecategorizeComplete?.()
+          }} />
         </div>
 
         <div style={{ marginBottom: '2rem' }}>

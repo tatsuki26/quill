@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Upload, Loader2 } from 'lucide-react'
 import { parseCSV, convertToTransaction } from '../utils/csvParser'
 import { supabase } from '../lib/supabase'
-import { categorizeMerchantsBatch } from '../lib/gemini'
 
 interface CSVUploadProps {
   onUploadComplete: () => void
@@ -27,11 +26,7 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
       // 取引データを変換
       const transactions = rows.map((row) => convertToTransaction(row))
 
-      // ユニークな取引先名を取得
-      const uniqueMerchants = Array.from(new Set(transactions.map(tx => tx.merchant)))
-      setProgress(`${uniqueMerchants.length}件の取引先を分類中...`)
-
-      // 既存のカテゴリマッピングを取得
+      // 既存のカテゴリマッピングを取得（分類は手動で行う）
       const { data: existingMappings } = await supabase
         .from('category_mappings')
         .select('merchant_name, category')
@@ -39,34 +34,6 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
       const existingMap = new Map(
         existingMappings?.map(m => [m.merchant_name, m.category]) || []
       )
-
-      // 未分類の取引先を抽出
-      const uncategorizedMerchants = uniqueMerchants.filter(
-        merchant => !existingMap.has(merchant)
-      )
-
-      // AIでカテゴリ分類
-      if (uncategorizedMerchants.length > 0) {
-        setProgress(`AIで${uncategorizedMerchants.length}件の取引先を分類中...`)
-        const categories = await categorizeMerchantsBatch(uncategorizedMerchants)
-
-        // カテゴリマッピングを保存
-        const mappingsToInsert = Object.entries(categories).map(([merchant, category]) => ({
-          merchant_name: merchant,
-          category,
-        }))
-
-        if (mappingsToInsert.length > 0) {
-          await supabase.from('category_mappings').upsert(mappingsToInsert, {
-            onConflict: 'merchant_name',
-          })
-        }
-
-        // 既存マップに追加
-        Object.entries(categories).forEach(([merchant, category]) => {
-          existingMap.set(merchant, category)
-        })
-      }
 
       // デフォルト非表示設定を取得
       const { data: hiddenSettings } = await supabase
