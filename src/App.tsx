@@ -507,7 +507,7 @@ function App() {
       )}
 
       {/* FABボタン（右下） */}
-      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && (
+      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showSettingsPage && !showManualEntry && !selectedTransaction && showTransactions && (
         <button
           onClick={() => setShowManualEntry(true)}
           style={{

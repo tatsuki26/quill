@@ -1,8 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Transaction } from '../types'
 import { formatCurrency } from '../utils/formatCurrency'
-import { formatTransactionDate } from '../utils/dateUtils'
-import { ArrowRight, TrendingDown, Calendar, CreditCard } from 'lucide-react'
+import { ArrowRight, TrendingDown, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface DashboardProps {
   transactions: Transaction[]
@@ -12,27 +11,28 @@ interface DashboardProps {
 export function Dashboard({ transactions, onNavigateToTransactions }: DashboardProps) {
   const now = new Date()
   const currentMonth = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
 
-  // 今月の取引をフィルタリング
-  const currentMonthTransactions = useMemo(() => {
+  // 選択された月の取引をフィルタリング
+  const selectedMonthTransactions = useMemo(() => {
     return transactions.filter(tx => {
       const txDate = new Date(tx.transaction_date.replace(/\//g, '-'))
       const txMonth = `${txDate.getFullYear()}/${String(txDate.getMonth() + 1).padStart(2, '0')}`
-      return txMonth === currentMonth
+      return txMonth === selectedMonth
     })
-  }, [transactions, currentMonth])
+  }, [transactions, selectedMonth])
 
-  // 今月の支出合計
+  // 選択された月の支出合計
   const monthlyExpense = useMemo(() => {
-    return currentMonthTransactions.reduce((sum, tx) => {
+    return selectedMonthTransactions.reduce((sum, tx) => {
       return sum + (tx.withdrawal_amount || 0)
     }, 0)
-  }, [currentMonthTransactions])
+  }, [selectedMonthTransactions])
 
   // カテゴリ別の支出
   const categoryExpenses = useMemo(() => {
     const categoryMap: Record<string, number> = {}
-    currentMonthTransactions.forEach(tx => {
+    selectedMonthTransactions.forEach(tx => {
       if (tx.withdrawal_amount && tx.category) {
         categoryMap[tx.category] = (categoryMap[tx.category] || 0) + tx.withdrawal_amount
       }
@@ -40,22 +40,25 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
     return Object.entries(categoryMap)
       .map(([category, amount]) => ({ category, amount }))
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5) // トップ5
-  }, [currentMonthTransactions])
+  }, [selectedMonthTransactions])
 
-  // 最近の取引（最新5件）
-  const recentTransactions = useMemo(() => {
-    return [...transactions]
-      .sort((a, b) => {
-        const dateA = new Date(a.transaction_date.replace(/\//g, '-'))
-        const dateB = new Date(b.transaction_date.replace(/\//g, '-'))
-        return dateB.getTime() - dateA.getTime()
-      })
-      .slice(0, 5)
-  }, [transactions])
+  // 選択された月の取引数
+  const monthlyTransactionCount = selectedMonthTransactions.length
 
-  // 今月の取引数
-  const monthlyTransactionCount = currentMonthTransactions.length
+  // 月の切り替え関数
+  const changeMonth = (direction: 'prev' | 'next') => {
+    const [year, month] = selectedMonth.split('/').map(Number)
+    const date = new Date(year, month - 1, 1)
+    
+    if (direction === 'prev') {
+      date.setMonth(date.getMonth() - 1)
+    } else {
+      date.setMonth(date.getMonth() + 1)
+    }
+    
+    const newMonth = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}`
+    setSelectedMonth(newMonth)
+  }
 
   return (
     <div style={{ padding: '1rem', maxWidth: '1200px', margin: '0 auto' }}>
@@ -81,7 +84,7 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
             fontSize: '14px',
             color: '#666',
           }}>
-            {currentMonth}の概要
+            {selectedMonth}の概要
           </p>
         </div>
         <button
@@ -137,7 +140,7 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
               fontSize: '12px',
               color: '#999',
             }}>
-              今月の支出
+              {selectedMonth === currentMonth ? '今月の支出' : `${selectedMonth}の支出`}
             </span>
           </div>
           <div style={{
@@ -180,7 +183,7 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
               fontSize: '12px',
               color: '#999',
             }}>
-              今月の取引数
+              {selectedMonth === currentMonth ? '今月の取引数' : `${selectedMonth}の取引数`}
             </span>
           </div>
           <div style={{
@@ -195,32 +198,81 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
             color: '#999',
             marginTop: '0.5rem',
           }}>
-            {currentMonth}
+            {selectedMonth}
           </div>
         </div>
       </div>
 
+      {/* カテゴリ別支出 */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
-        gap: '1.5rem',
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '1.5rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        marginBottom: '1.5rem',
       }}>
-        {/* カテゴリ別支出 */}
         <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem',
         }}>
           <h2 style={{
             margin: 0,
-            marginBottom: '1rem',
             fontSize: '18px',
             fontWeight: 'bold',
             color: '#1a1a1a',
           }}>
-            カテゴリ別支出（今月）
+            カテゴリ別支出
           </h2>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}>
+            <button
+              onClick={() => changeMonth('prev')}
+              style={{
+                border: 'none',
+                backgroundColor: '#f0f0f0',
+                borderRadius: '6px',
+                padding: '0.5rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ChevronLeft size={20} color="#666" />
+            </button>
+            <span style={{
+              fontSize: '14px',
+              fontWeight: 'bold',
+              color: '#333',
+              minWidth: '80px',
+              textAlign: 'center',
+            }}>
+              {selectedMonth}
+            </span>
+            <button
+              onClick={() => changeMonth('next')}
+              disabled={selectedMonth === currentMonth}
+              style={{
+                border: 'none',
+                backgroundColor: selectedMonth === currentMonth ? '#f5f5f5' : '#f0f0f0',
+                borderRadius: '6px',
+                padding: '0.5rem',
+                cursor: selectedMonth === currentMonth ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: selectedMonth === currentMonth ? 0.5 : 1,
+              }}
+            >
+              <ChevronRight size={20} color="#666" />
+            </button>
+          </div>
+        </div>
           {categoryExpenses.length > 0 ? (
             <div>
               {categoryExpenses.map((item, idx) => (
@@ -260,83 +312,6 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
               データがありません
             </div>
           )}
-        </div>
-
-        {/* 最近の取引 */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        }}>
-          <h2 style={{
-            margin: 0,
-            marginBottom: '1rem',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            color: '#1a1a1a',
-          }}>
-            最近の取引
-          </h2>
-          {recentTransactions.length > 0 ? (
-            <div>
-              {recentTransactions.map((tx, idx) => (
-                <div
-                  key={tx.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.75rem 0',
-                    borderBottom: idx < recentTransactions.length - 1 ? '1px solid #f0f0f0' : 'none',
-                  }}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      fontSize: '14px',
-                      fontWeight: 'bold',
-                      color: '#333',
-                      marginBottom: '0.25rem',
-                    }}>
-                      {tx.merchant}
-                    </div>
-                    <div style={{
-                      fontSize: '12px',
-                      color: '#999',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                    }}>
-                      <Calendar size={12} />
-                      {formatTransactionDate(tx.transaction_date)}
-                    </div>
-                  </div>
-                  <div style={{
-                    fontSize: '16px',
-                    fontWeight: 'bold',
-                    color: tx.withdrawal_amount ? '#e74c3c' : '#27ae60',
-                    marginLeft: '1rem',
-                  }}>
-                    {tx.withdrawal_amount
-                      ? `-${formatCurrency(tx.withdrawal_amount)}`
-                      : tx.deposit_amount
-                      ? `+${formatCurrency(tx.deposit_amount)}`
-                      : formatCurrency(0)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{
-              padding: '2rem',
-              textAlign: 'center',
-              color: '#999',
-              fontSize: '14px',
-            }}>
-              データがありません
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
