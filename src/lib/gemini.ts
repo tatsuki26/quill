@@ -44,7 +44,7 @@ const CATEGORY_DESCRIPTIONS = {
 }
 
 export async function categorizeMerchant(merchantName: string): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const categoryList = CATEGORIES.map((cat, i) => `${i + 1}. ${cat}: ${CATEGORY_DESCRIPTIONS[cat]}`).join('\n')
 
@@ -56,8 +56,8 @@ ${categoryList}
 店舗名: ${merchantName}
 
 重要：
-- カテゴリ名は必ず上記のリストから選択してください
-- カテゴリ名のみを返答してください（説明は不要）
+- カテゴリ名は必ず上記のリストから正確に選択してください（例: 外食、コンビニ、スーパー、ドラッグストア、ショッピング、ガソリン、医療、交通、娯楽、投資、公共料金、食費、その他）
+- カテゴリ名のみを返答してください（説明や余分な文字は不要）
 - 例: マクドナルド → 外食
 - 例: セブン-イレブン → コンビニ
 - 例: アマゾン → ショッピング
@@ -70,30 +70,37 @@ ${categoryList}
     const response = await result.response
     let category = response.text().trim()
     
+    console.log(`Gemini response for "${merchantName}": "${category}"`)
+    
     // 余分な文字を除去
     category = category.replace(/^カテゴリ[:：]\s*/i, '').replace(/^「|」$/g, '').trim()
     
-    // カテゴリ名を正規化
+    // 完全一致で確認
     if (CATEGORIES.includes(category as Category)) {
       return category
     }
     
-    // 部分一致で確認
-    const matchedCategory = CATEGORIES.find(cat => category.includes(cat))
+    // 部分一致で確認（大文字小文字を無視）
+    const matchedCategory = CATEGORIES.find(cat => 
+      category.toLowerCase().includes(cat.toLowerCase()) || 
+      cat.toLowerCase().includes(category.toLowerCase())
+    )
+    
     if (matchedCategory) {
+      console.log(`Matched category for "${merchantName}": "${category}" -> "${matchedCategory}"`)
       return matchedCategory
     }
     
     console.warn(`Unknown category for "${merchantName}": "${category}", defaulting to "その他"`)
     return 'その他'
   } catch (error) {
-    console.error('Error categorizing merchant:', error)
+    console.error(`Error categorizing merchant "${merchantName}":`, error)
     return 'その他'
   }
 }
 
 export async function categorizeMerchantsBatch(merchantNames: string[]): Promise<Record<string, string>> {
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
   const categoryList = CATEGORIES.map((cat, i) => `${i + 1}. ${cat}: ${CATEGORY_DESCRIPTIONS[cat]}`).join('\n')
 
@@ -107,10 +114,11 @@ ${categoryList}
 ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
 
 重要：
-- カテゴリ名は必ず上記のリストから選択してください
-- カテゴリ名のみを返答してください（説明は不要）
+- カテゴリ名は必ず上記のリストから正確に選択してください（例: 外食、コンビニ、スーパー、ドラッグストア、ショッピング、ガソリン、医療、交通、娯楽、投資、公共料金、食費、その他）
+- カテゴリ名は完全一致で返答してください（説明や余分な文字は不要）
+- 必ずJSON形式で返答してください
 
-以下の形式で返答してください（JSON形式のみ）：
+以下の形式で返答してください（JSON形式のみ、他の説明は不要）：
 {
   "1": "カテゴリ名",
   "2": "カテゴリ名",
@@ -122,37 +130,67 @@ ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
     const response = await generateResult.response
     const text = response.text().trim()
     
-    // JSONを抽出
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (jsonMatch) {
-      const categories = JSON.parse(jsonMatch[0]) as Record<string, string>
-      const categoryMap: Record<string, string> = {}
-      
-      merchantNames.forEach((name, index) => {
-        const key = String(index + 1)
-        let category = categories[key] || 'その他'
+    console.log('Gemini API response:', text)
+    
+    // JSONを抽出（マークダウンコードブロックも考慮）
+    let jsonText = text
+    const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/)
+    if (codeBlockMatch) {
+      jsonText = codeBlockMatch[1]
+    } else {
+      const jsonMatch = text.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        jsonText = jsonMatch[0]
+      }
+    }
+    
+    if (jsonText) {
+      try {
+        const categories = JSON.parse(jsonText) as Record<string, string>
+        const categoryMap: Record<string, string> = {}
         
-        // カテゴリ名を正規化
-        category = category.replace(/^「|」$/g, '').trim()
+        merchantNames.forEach((name, index) => {
+          const key = String(index + 1)
+          let category = categories[key] || categories[name] || 'その他'
+          
+          // カテゴリ名を正規化
+          category = category.replace(/^「|」$/g, '').replace(/^カテゴリ[:：]\s*/i, '').trim()
+          
+          // 完全一致で確認
+          if (CATEGORIES.includes(category as Category)) {
+            categoryMap[name] = category
+            return
+          }
+          
+          // 部分一致で確認（大文字小文字を無視）
+          const matchedCategory = CATEGORIES.find(cat => 
+            category.toLowerCase().includes(cat.toLowerCase()) || 
+            cat.toLowerCase().includes(category.toLowerCase())
+          )
+          
+          if (matchedCategory) {
+            categoryMap[name] = matchedCategory
+            console.log(`Matched category for "${name}": "${category}" -> "${matchedCategory}"`)
+          } else {
+            console.warn(`Unknown category for "${name}": "${category}", defaulting to "その他"`)
+            categoryMap[name] = 'その他'
+          }
+        })
         
-        if (!CATEGORIES.includes(category as Category)) {
-          // 部分一致で確認
-          const matchedCategory = CATEGORIES.find(cat => category.includes(cat))
-          category = matchedCategory || 'その他'
-        }
-        
-        categoryMap[name] = category
-      })
-      
-      return categoryMap
+        console.log('Category mapping result:', categoryMap)
+        return categoryMap
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, 'Text:', jsonText)
+      }
     }
     
     // JSON形式でない場合は個別に分類
+    console.log('Falling back to individual categorization')
     const categoryMap: Record<string, string> = {}
     for (const name of merchantNames) {
       categoryMap[name] = await categorizeMerchant(name)
       // レート制限を考慮して少し待機
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await new Promise(resolve => setTimeout(resolve, 200))
     }
     
     return categoryMap
@@ -161,8 +199,13 @@ ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
     // エラー時は個別分類にフォールバック
     const categoryMap: Record<string, string> = {}
     for (const name of merchantNames) {
-      categoryMap[name] = await categorizeMerchant(name)
-      await new Promise(resolve => setTimeout(resolve, 100))
+      try {
+        categoryMap[name] = await categorizeMerchant(name)
+        await new Promise(resolve => setTimeout(resolve, 200))
+      } catch (individualError) {
+        console.error(`Error categorizing "${name}":`, individualError)
+        categoryMap[name] = 'その他'
+      }
     }
     return categoryMap
   }
