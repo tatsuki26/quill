@@ -5,11 +5,9 @@ import { useMemo } from 'react'
 
 interface TransactionListProps {
   transactions: Transaction[]
-  onToggleHide?: (id: string, isHidden: boolean) => void
-  isAdmin?: boolean
 }
 
-export function TransactionList({ transactions, onToggleHide, isAdmin = false }: TransactionListProps) {
+export function TransactionList({ transactions }: TransactionListProps) {
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
     

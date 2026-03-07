@@ -296,7 +296,6 @@ function App() {
           ) : (
             <TransactionList
               transactions={filteredTransactions}
-              isAdmin={isAdmin}
             />
           )}
 
