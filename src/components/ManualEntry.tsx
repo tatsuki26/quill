@@ -588,7 +588,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
                   console.error('Error playing video in onCanPlay:', err)
                 })
               }}
-              onPlay={(e) => {
+              onPlay={() => {
                 console.log('Video is playing in JSX')
               }}
               onError={() => {
