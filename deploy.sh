@@ -1,15 +1,14 @@
 #!/bin/bash
 
-# Git操作スクリプト
-cd /Users/tatsuki/Downloads/paypay
+# デプロイスクリプト
+# 実装完了時は、このスクリプトのコミットメッセージを実装内容に合わせて修正してください
 
-echo "📦 変更をステージング..."
+# コミットメッセージ（実装内容に合わせて修正してください）
+COMMIT_MESSAGE="実装内容をここに記述"
+
+# Git操作
 git add .
-
-echo "💾 コミット..."
-git commit -m "Fix all TypeScript compilation errors"
-
-echo "🚀 GitHubにプッシュ..."
+git commit -m "$COMMIT_MESSAGE"
 git push origin main
 
-echo "✅ 完了！GitHub Actionsが自動実行されます。"
+echo "デプロイが完了しました"

@@ -8,10 +8,13 @@ import { CSVUpload } from './components/CSVUpload'
 import { UsageReport } from './components/UsageReport'
 import { supabase } from './lib/supabase'
 import { Transaction, FilterType } from './types'
-import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut, RefreshCw } from 'lucide-react'
+import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut, RefreshCw, List } from 'lucide-react'
 import { DefaultHiddenSettings } from './components/DefaultHiddenSettings'
 import { RecategorizeButton } from './components/RecategorizeButton'
 import { CategoryManagement } from './components/CategoryManagement'
+import { AssetManagement } from './components/AssetManagement'
+import { ManualEntry } from './components/ManualEntry'
+import { Plus } from 'lucide-react'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
@@ -23,6 +26,8 @@ function App() {
   const [showUpload, setShowUpload] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
+  const [showAssetManagement, setShowAssetManagement] = useState(false)
+  const [showManualEntry, setShowManualEntry] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -251,7 +256,7 @@ function App() {
     <div style={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
       {/* Header */}
       <div style={{
-        backgroundColor: '#00C300',
+        backgroundColor: '#1a1a1a',
         color: 'white',
         padding: '1rem',
         display: 'flex',
@@ -273,7 +278,31 @@ function App() {
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>取引履歴</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <img
+              src="/logo.svg"
+              alt="Quill"
+              style={{
+                height: '32px',
+                width: 'auto',
+              }}
+            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <img
+              src="/logo.svg"
+              alt="Quill"
+              style={{
+                height: '32px',
+                width: 'auto',
+              }}
+              onError={(e) => {
+                // ロゴが読み込めない場合は非表示にする
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+            <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>取引履歴</h1>
+          </div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
@@ -304,8 +333,26 @@ function App() {
               </button>
               <button
                 onClick={() => {
-                  setShowSettings(false)
+                  setShowSettings(true)
+                  setShowCategoryManagement(false)
+                  setShowAssetManagement(false)
+                }}
+                style={{
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'white',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+                title="設定"
+              >
+                <Settings size={24} />
+              </button>
+              <button
+                onClick={() => {
                   setShowCategoryManagement(!showCategoryManagement)
+                  setShowAssetManagement(false)
+                  setShowSettings(false)
                 }}
                 style={{
                   border: 'none',
@@ -316,7 +363,24 @@ function App() {
                 }}
                 title="カテゴリ管理"
               >
-                <Settings size={24} />
+                <List size={24} />
+              </button>
+              <button
+                onClick={() => {
+                  setShowAssetManagement(true)
+                  setShowCategoryManagement(false)
+                  setShowSettings(false)
+                }}
+                style={{
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'white',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+                title="資産管理"
+              >
+                💰
               </button>
             </>
           )}
@@ -409,11 +473,54 @@ function App() {
         />
       )}
 
+      {showAssetManagement && isAdmin && (
+        <AssetManagement
+          onClose={() => {
+            setShowAssetManagement(false)
+            loadTransactions()
+          }}
+        />
+      )}
+
       {showSettings && isAdmin && (
         <DefaultHiddenSettings
           onClose={() => setShowSettings(false)}
           onRecategorizeComplete={loadTransactions}
         />
+      )}
+
+      {showManualEntry && (
+        <ManualEntry
+          onClose={() => setShowManualEntry(false)}
+          onSave={loadTransactions}
+        />
+      )}
+
+      {/* FABボタン（右下） */}
+      {!showUpload && !showReport && !showSettings && !showCategoryManagement && !showAssetManagement && !showManualEntry && (
+        <button
+          onClick={() => setShowManualEntry(true)}
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            right: '2rem',
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: '#1a1a1a',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+          }}
+          title="明細を追加"
+        >
+          <Plus size={24} />
+        </button>
       )}
     </div>
   )

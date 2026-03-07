@@ -16,6 +16,8 @@ export interface Transaction {
   category: string | null
   is_hidden: boolean
   memo: string | null
+  asset: string | null
+  receipt_image: string | null
   created_at: string
   updated_at: string
 }
@@ -34,6 +36,14 @@ export interface Category {
   name: string
   color_bg: string
   color_text: string
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Asset {
+  id: string
+  name: string
   display_order: number
   created_at: string
   updated_at: string

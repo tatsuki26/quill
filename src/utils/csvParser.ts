@@ -47,5 +47,7 @@ export function convertToTransaction(row: CSVRow): Omit<Transaction, 'id' | 'cat
     user: row['利用者'] !== '-' ? row['利用者'] : null,
     transaction_number: row['取引番号'],
     memo: null,
+    asset: 'PayPay',
+    receipt_image: null,
   }
 }
