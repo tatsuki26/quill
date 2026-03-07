@@ -14,7 +14,7 @@ CREATE TABLE transactions (
   merchant TEXT NOT NULL,
   payment_method TEXT NOT NULL,
   payment_category TEXT,
-  user TEXT,
+  "user" TEXT,
   transaction_number TEXT UNIQUE NOT NULL,
   category TEXT,
   is_hidden BOOLEAN DEFAULT FALSE,

@@ -18,47 +18,42 @@ Quill（羽ペン）は、決済履歴を記録し、分析するためのアプ
 
 ## セットアップ
 
-### 1. 依存関係のインストール
+詳細なセットアップ手順は [SETUP_GUIDE.md](./docs/SETUP_GUIDE.md) を参照してください。
 
-```bash
-npm install
-```
+### クイックスタート
 
-### 2. Supabaseのセットアップ
+1. 依存関係のインストール
+   ```bash
+   npm install
+   ```
 
-1. [Supabase](https://supabase.com)でプロジェクトを作成
-2. SQL Editorで `supabase-schema.sql` を実行
-3. Project Settings > API から URL と anon key を取得
+2. SupabaseとGoogle Gemini APIのセットアップ
+   - [SETUP_GUIDE.md](./docs/SETUP_GUIDE.md) の手順に従って設定
 
-### 3. Google Gemini APIのセットアップ
+3. 環境変数の設定
+   - `.env` ファイルを作成（`.env.example`を参考）
 
-1. [Google AI Studio](https://makersuite.google.com/app/apikey)でAPIキーを取得
-
-### 4. 環境変数の設定
-
-`.env` ファイルを作成し、以下を設定：
-
-```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
-VITE_AUTH_PASSWORD=your_auth_password
-```
-
-### 5. 開発サーバーの起動
-
-```bash
-npm run dev
-```
+4. 開発サーバーの起動
+   ```bash
+   npm run dev
+   ```
 
 ## デプロイ
 
-### Vercelへのデプロイ
+GitHub Actionsを使用した自動デプロイの詳細は [CI_CD_SETUP.md](./docs/CI_CD_SETUP.md) を参照してください。
 
-1. GitHubにリポジトリをプッシュ
-2. [Vercel](https://vercel.com)でプロジェクトをインポート
-3. 環境変数を設定
-4. デプロイ
+### デプロイの概要
+
+- **CI/CD**: GitHub Actions
+- **ホスティング**: Vercel
+- **自動デプロイ**: `main`ブランチへのpushで自動デプロイ
+
+### クイックセットアップ
+
+1. Vercel CLIでプロジェクトを初期化
+2. GitHub Secretsに必要な情報を設定
+3. Vercelの環境変数を設定
+4. `main`ブランチにpushして自動デプロイ
 
 ## 使用方法
 
