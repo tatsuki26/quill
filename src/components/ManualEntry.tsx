@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { X, Camera, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { X, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Category, Asset } from '../types'
 import { parseReceiptImage, compressImage } from '../lib/geminiVision'
@@ -30,6 +30,25 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   const [assets, setAssets] = useState<Asset[]>([])
   const [merchantSuggestions, setMerchantSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  
+  // カメラ関連の状態
+  const [isCameraMode, setIsCameraMode] = useState(false)
+  const [stream, setStream] = useState<MediaStream | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [readStatus, setReadStatus] = useState<{
+    date: boolean
+    amount: boolean
+    merchant: boolean
+    asset: boolean
+  }>({
+    date: false,
+    amount: false,
+    merchant: false,
+    asset: false,
+  })
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
 
   useEffect(() => {
     loadCategories()
@@ -44,6 +63,94 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
       setShowSuggestions(false)
     }
   }, [merchant])
+
+  // 必須項目の読み取り状況をチェック
+  useEffect(() => {
+    const hasDate = !!date && date.match(/\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/)
+    const hasAmount = !!amount && !isNaN(parseFloat(amount.replace(/,/g, ''))) && parseFloat(amount.replace(/,/g, '')) > 0
+    const hasMerchant = !!merchant.trim()
+    const hasAsset = !!asset
+
+    setReadStatus({
+      date: !!hasDate,
+      amount: !!hasAmount,
+      merchant: !!hasMerchant,
+      asset: !!hasAsset,
+    })
+  }, [date, amount, merchant, asset])
+
+  // 自動保存の処理
+  useEffect(() => {
+    if (!autoSaveEnabled || hasAutoSaved) return
+
+    const hasDate = !!date && date.match(/\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/)
+    const hasAmount = !!amount && !isNaN(parseFloat(amount.replace(/,/g, ''))) && parseFloat(amount.replace(/,/g, '')) > 0
+    const hasMerchant = !!merchant.trim()
+    const hasAsset = !!asset
+
+    // 全ての必須項目が揃ったら自動保存
+    if (hasDate && hasAmount && hasMerchant && hasAsset && receiptImage) {
+      const timer = setTimeout(async () => {
+        setHasAutoSaved(true)
+        // handleSaveを直接呼び出さず、必要な処理を実行
+        const amountNum = parseFloat(amount.replace(/,/g, ''))
+        let formattedDate = date
+        const dateMatch = date.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+        if (dateMatch) {
+          const year = dateMatch[1]
+          const month = dateMatch[2].padStart(2, '0')
+          const day = dateMatch[3].padStart(2, '0')
+          formattedDate = `${year}/${month}/${day}`
+        }
+        const transactionNumber = `MANUAL_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+
+        try {
+          const { error } = await supabase
+            .from('transactions')
+            .insert({
+              transaction_date: formattedDate,
+              withdrawal_amount: amountNum,
+              deposit_amount: null,
+              foreign_withdrawal_amount: null,
+              currency: null,
+              exchange_rate: null,
+              country: null,
+              transaction_type: '支払い',
+              merchant: merchant.trim(),
+              payment_method: '手動入力',
+              payment_category: null,
+              user: null,
+              transaction_number: transactionNumber,
+              category: category || null,
+              is_hidden: false,
+              memo: memo.trim() || null,
+              asset: asset,
+              receipt_image: receiptImage,
+              details: receiptDetails,
+            })
+
+          if (error) throw error
+
+          onSave()
+          onClose()
+        } catch (error) {
+          console.error('Error auto-saving transaction:', error)
+          setHasAutoSaved(false) // エラー時はリセット
+        }
+      }, 1500) // 1.5秒後に自動保存
+
+      return () => clearTimeout(timer)
+    }
+  }, [date, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, category, memo, receiptDetails, onSave, onClose])
+
+  // カメラのクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [stream])
 
   const loadCategories = async () => {
     try {
@@ -95,6 +202,89 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     }
   }
 
+  const startCamera = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' } // 背面カメラを優先
+      })
+      setStream(mediaStream)
+      setIsCameraMode(true)
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream
+      }
+    } catch (error) {
+      console.error('Error accessing camera:', error)
+      alert('カメラへのアクセスに失敗しました。ファイルアップロードを使用してください。')
+    }
+  }
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setIsCameraMode(false)
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+  }
+
+  const captureAndAnalyze = async () => {
+    if (!videoRef.current || !canvasRef.current) return
+
+    setIsCapturing(true)
+    try {
+      // ビデオから画像をキャプチャ
+      const canvas = canvasRef.current
+      const video = videoRef.current
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(video, 0, 0)
+
+        // CanvasからBlobに変換
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            setIsCapturing(false)
+            return
+          }
+
+          try {
+            // 画像を圧縮
+            const compressedBase64 = await compressImage(blob as File)
+            setReceiptImage(compressedBase64)
+
+            // Gemini Vision APIで解析
+            setIsAnalyzing(true)
+            const result = await parseReceiptImage(compressedBase64)
+
+            // 解析結果をフォームに反映
+            if (result.date) setDate(result.date)
+            if (result.amount) setAmount(String(result.amount))
+            if (result.merchant) setMerchant(result.merchant)
+            if (result.category) setCategory(result.category)
+            // 商品詳細を保存
+            if (result.items && result.items.length > 0) {
+              setReceiptDetails({ items: result.items })
+            } else {
+              setReceiptDetails(null)
+            }
+          } catch (error) {
+            console.error('Error analyzing receipt:', error)
+            alert('レシートの解析に失敗しました。再度撮影してください。')
+          } finally {
+            setIsAnalyzing(false)
+            setIsCapturing(false)
+          }
+        }, 'image/jpeg', 0.9)
+      }
+    } catch (error) {
+      console.error('Error capturing image:', error)
+      setIsCapturing(false)
+    }
+  }
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -133,7 +323,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     }
   }
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     // バリデーション
     if (!date || !amount || !asset) {
       alert('日付、金額、資産は必須です')
@@ -191,14 +381,20 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
       if (error) throw error
 
-      alert('取引を保存しました')
+      if (!hasAutoSaved) {
+        alert('取引を保存しました')
+      }
+      setHasAutoSaved(false) // リセット
       onSave()
       onClose()
     } catch (error) {
       console.error('Error saving transaction:', error)
-      alert('取引の保存に失敗しました')
+      setHasAutoSaved(false) // エラー時もリセット
+      if (!hasAutoSaved) {
+        alert('取引の保存に失敗しました')
+      }
     }
-  }
+  }, [date, amount, merchant, asset, category, memo, receiptImage, receiptDetails, hasAutoSaved, onSave, onClose])
 
   return (
     <div style={{
@@ -241,54 +437,239 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
         {/* レシート画像アップロード */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontWeight: 'bold',
-          }}>
-            レシート画像（オプション）
-          </label>
           <div style={{
-            border: '2px dashed #ddd',
-            borderRadius: '8px',
-            padding: '2rem',
-            textAlign: 'center',
-            backgroundColor: '#f9f9f9',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '0.5rem',
           }}>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              style={{ display: 'none' }}
-              id="receipt-upload"
-            />
-            <label
-              htmlFor="receipt-upload"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.5rem',
-                cursor: 'pointer',
-              }}
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
-                  <span>解析中...</span>
-                </>
-              ) : (
-                <>
-                  <Camera size={32} color="#666" />
-                  <span>レシート画像をアップロード</span>
-                  <span style={{ fontSize: '12px', color: '#999' }}>
-                    自動で情報を抽出します
-                  </span>
-                </>
-              )}
+            <label style={{
+              fontWeight: 'bold',
+            }}>
+              レシート画像（オプション）
+            </label>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontSize: '14px',
+              cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={autoSaveEnabled}
+                onChange={(e) => setAutoSaveEnabled(e.target.checked)}
+                style={{ cursor: 'pointer' }}
+              />
+              <span>自動保存</span>
             </label>
           </div>
-          {receiptImage && (
+
+          {/* 読み取り状況の表示 */}
+          <div style={{
+            display: 'flex',
+            gap: '1rem',
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: '#f9f9f9',
+            borderRadius: '8px',
+            fontSize: '12px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {readStatus.date ? (
+                <CheckCircle size={16} color="#27ae60" />
+              ) : (
+                <AlertCircle size={16} color="#e74c3c" />
+              )}
+              <span>日付</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {readStatus.amount ? (
+                <CheckCircle size={16} color="#27ae60" />
+              ) : (
+                <AlertCircle size={16} color="#e74c3c" />
+              )}
+              <span>金額</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {readStatus.merchant ? (
+                <CheckCircle size={16} color="#27ae60" />
+              ) : (
+                <AlertCircle size={16} color="#e74c3c" />
+              )}
+              <span>店舗名</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              {readStatus.asset ? (
+                <CheckCircle size={16} color="#27ae60" />
+              ) : (
+                <AlertCircle size={16} color="#e74c3c" />
+              )}
+              <span>資産</span>
+            </div>
+          </div>
+
+          {!isCameraMode ? (
+            <div style={{
+              border: '2px dashed #ddd',
+              borderRadius: '8px',
+              padding: '2rem',
+              textAlign: 'center',
+              backgroundColor: '#f9f9f9',
+            }}>
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'center',
+              }}>
+                <button
+                  onClick={startCamera}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: '#00C300',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Camera size={20} />
+                  カメラで撮影
+                </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  style={{ display: 'none' }}
+                  id="receipt-upload"
+                />
+                <label
+                  htmlFor="receipt-upload"
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#666',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      解析中...
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={20} />
+                      ファイルから選択
+                    </>
+                  )}
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              border: '2px solid #00C300',
+              borderRadius: '8px',
+              padding: '1rem',
+              backgroundColor: '#f9f9f9',
+            }}>
+              <div style={{ position: 'relative', marginBottom: '1rem' }}>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: '100%',
+                    borderRadius: '8px',
+                    backgroundColor: '#000',
+                  }}
+                />
+                {isAnalyzing && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    color: 'white',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}>
+                    <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
+                    <span>解析中...</span>
+                  </div>
+                )}
+              </div>
+              <div style={{
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'center',
+              }}>
+                <button
+                  onClick={captureAndAnalyze}
+                  disabled={isCapturing || isAnalyzing}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: 'none',
+                    borderRadius: '8px',
+                    backgroundColor: isCapturing || isAnalyzing ? '#ccc' : '#00C300',
+                    color: 'white',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: isCapturing || isAnalyzing ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {isCapturing || isAnalyzing ? (
+                    <>
+                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      処理中...
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={20} />
+                      撮影して解析
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={stopCamera}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#666',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                  }}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          )}
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          {receiptImage && !isCameraMode && (
             <div style={{ marginTop: '0.5rem' }}>
               <img
                 src={`data:image/jpeg;base64,${receiptImage}`}
