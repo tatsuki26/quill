@@ -2,19 +2,7 @@ import Papa from 'papaparse'
 import { Transaction } from '../types'
 
 export interface CSVRow {
-  取引日: string
-  出金金額（円）: string
-  入金金額（円）: string
-  海外出金金額: string
-  通貨: string
-  変換レート（円）: string
-  利用国: string
-  取引内容: string
-  取引先: string
-  取引方法: string
-  支払い区分: string
-  利用者: string
-  取引番号: string
+  [key: string]: string
 }
 
 export function parseCSV(csvText: string): CSVRow[] {
