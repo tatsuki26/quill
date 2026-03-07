@@ -46,6 +46,7 @@ function App() {
         { setting_type: 'payment_method', value: 'PayPay残高' },
         { setting_type: 'payment_method', value: 'PayPayポイント' },
         { setting_type: 'transaction_type', value: 'ポイント、残高の獲得' },
+        { setting_type: 'payment_method', value: '銀行' },
       ]
 
       const settingsToInsert = defaultSettings.filter(
@@ -113,7 +114,9 @@ function App() {
       // 既存データの非表示フラグを更新（必要に応じて）
       const transactionsToUpdate = (data || []).filter(tx => {
         const shouldBeHidden = hiddenPaymentMethods.has(tx.payment_method) ||
-                               hiddenTransactionTypes.has(tx.transaction_type)
+                               hiddenTransactionTypes.has(tx.transaction_type) ||
+                               // 銀行からのチャージを非表示
+                               (tx.transaction_type === 'チャージ' && tx.payment_method.includes('銀行'))
         return shouldBeHidden && !tx.is_hidden
       })
 
@@ -318,7 +321,6 @@ function App() {
           ) : (
             <TransactionList
               transactions={filteredTransactions}
-              isAdmin={isAdmin}
               onUpdateMemo={handleUpdateMemo}
             />
           )}

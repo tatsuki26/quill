@@ -53,7 +53,9 @@ export function CSVUpload({ onUploadComplete }: CSVUploadProps) {
         ...tx,
         category: existingMap.get(tx.merchant) || null,
         is_hidden: hiddenPaymentMethods.has(tx.payment_method) ||
-                   hiddenTransactionTypes.has(tx.transaction_type),
+                   hiddenTransactionTypes.has(tx.transaction_type) ||
+                   // 銀行からのチャージを非表示
+                   (tx.transaction_type === 'チャージ' && tx.payment_method.includes('銀行')),
       }))
 
       // 同じtransaction_numberの重複を除去（最新のデータを優先）

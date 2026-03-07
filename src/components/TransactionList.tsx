@@ -6,11 +6,10 @@ import { Edit2, Check, X } from 'lucide-react'
 
 interface TransactionListProps {
   transactions: Transaction[]
-  isAdmin?: boolean
   onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
 }
 
-export function TransactionList({ transactions, isAdmin = false, onUpdateMemo }: TransactionListProps) {
+export function TransactionList({ transactions, onUpdateMemo }: TransactionListProps) {
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
     
