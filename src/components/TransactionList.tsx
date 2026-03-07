@@ -1,13 +1,16 @@
 import { Transaction } from '../types'
 import { formatTransactionDate, formatMonthHeader } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { Edit2, Check, X } from 'lucide-react'
 
 interface TransactionListProps {
   transactions: Transaction[]
+  isAdmin?: boolean
+  onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
 }
 
-export function TransactionList({ transactions }: TransactionListProps) {
+export function TransactionList({ transactions, isAdmin = false, onUpdateMemo }: TransactionListProps) {
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
     
@@ -199,6 +202,12 @@ export function TransactionList({ transactions }: TransactionListProps) {
                       {getCategoryBadge(tx.category)}
                     </div>
                   )}
+                  
+                  <MemoField
+                    transaction={tx}
+                    isAdmin={isAdmin}
+                    onUpdateMemo={onUpdateMemo}
+                  />
                 </div>
                 
                 <div style={{
@@ -237,6 +246,166 @@ export function TransactionList({ transactions }: TransactionListProps) {
             ))}
           </div>
         ))}
+    </div>
+  )
+}
+
+interface MemoFieldProps {
+  transaction: Transaction
+  isAdmin: boolean
+  onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
+}
+
+function MemoField({ transaction, isAdmin, onUpdateMemo }: MemoFieldProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [memo, setMemo] = useState(transaction.memo || '')
+  const [isSaving, setIsSaving] = useState(false)
+
+  const handleSave = async () => {
+    if (!onUpdateMemo) return
+    
+    setIsSaving(true)
+    try {
+      await onUpdateMemo(transaction.id, memo.trim() || null)
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error updating memo:', error)
+      alert('メモの保存に失敗しました')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setMemo(transaction.memo || '')
+    setIsEditing(false)
+  }
+
+  if (!isAdmin && !transaction.memo) {
+    return null
+  }
+
+  if (isEditing) {
+    return (
+      <div style={{
+        marginTop: '8px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+      }}>
+        <input
+          type="text"
+          value={memo}
+          onChange={(e) => {
+            const value = e.target.value
+            if (value.length <= 50) {
+              setMemo(value)
+            }
+          }}
+          placeholder="詳細を入力（50文字以内）"
+          maxLength={50}
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            border: '1px solid #ddd',
+            borderRadius: '6px',
+            fontSize: '13px',
+          }}
+          autoFocus
+        />
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: '#00C300',
+            color: 'white',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+          }}
+        >
+          <Check size={14} />
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={isSaving}
+          style={{
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: '#ccc',
+            color: 'white',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '12px',
+          }}
+        >
+          <X size={14} />
+        </button>
+        <span style={{
+          fontSize: '11px',
+          color: '#999',
+        }}>
+          {memo.length}/50
+        </span>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      marginTop: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    }}>
+      {transaction.memo ? (
+        <div style={{
+          fontSize: '13px',
+          color: '#666',
+          padding: '4px 8px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '4px',
+          flex: 1,
+        }}>
+          {transaction.memo}
+        </div>
+      ) : (
+        <div style={{
+          fontSize: '12px',
+          color: '#999',
+          fontStyle: 'italic',
+        }}>
+          詳細なし
+        </div>
+      )}
+      {isAdmin && (
+        <button
+          onClick={() => setIsEditing(true)}
+          style={{
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: '#f0f0f0',
+            color: '#666',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '11px',
+          }}
+        >
+          <Edit2 size={12} />
+          {transaction.memo ? '編集' : '追加'}
+        </button>
+      )}
     </div>
   )
 }

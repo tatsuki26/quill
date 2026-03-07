@@ -65,6 +65,28 @@ function App() {
     applyFilters()
   }, [transactions, filters])
 
+  const handleUpdateMemo = async (id: string, memo: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ memo, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      // ローカル状態を更新
+      setTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, memo } : tx))
+      )
+      setFilteredTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, memo } : tx))
+      )
+    } catch (error) {
+      console.error('Error updating memo:', error)
+      throw error
+    }
+  }
+
   const loadTransactions = async () => {
     try {
       setLoading(true)
@@ -296,6 +318,8 @@ function App() {
           ) : (
             <TransactionList
               transactions={filteredTransactions}
+              isAdmin={isAdmin}
+              onUpdateMemo={isAdmin ? handleUpdateMemo : undefined}
             />
           )}
 

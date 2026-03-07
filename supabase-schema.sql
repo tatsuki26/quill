@@ -18,6 +18,7 @@ CREATE TABLE transactions (
   transaction_number TEXT UNIQUE NOT NULL,
   category TEXT,
   is_hidden BOOLEAN DEFAULT FALSE,
+  memo TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

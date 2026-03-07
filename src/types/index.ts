@@ -15,6 +15,7 @@ export interface Transaction {
   transaction_number: string
   category: string | null
   is_hidden: boolean
+  memo: string | null
   created_at: string
   updated_at: string
 }
