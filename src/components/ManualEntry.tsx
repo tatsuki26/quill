@@ -572,76 +572,27 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           bottom: 0,
           backgroundColor: '#000',
           zIndex: 2000,
-          display: 'flex',
-          flexDirection: 'column',
           width: '100vw',
           height: '100vh',
           overflow: 'hidden',
         }}>
-          {/* ヘッダー */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '1rem',
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            zIndex: 1,
-          }}>
-            <h3 style={{
-              margin: 0,
-              color: 'white',
-              fontSize: '18px',
-              fontWeight: 'bold',
-            }}>
-              レシートを撮影
-            </h3>
-            <button
-              onClick={stopCamera}
-              style={{
-                border: 'none',
-                backgroundColor: 'transparent',
-                color: 'white',
-                cursor: 'pointer',
-                padding: '4px',
-              }}
-            >
-              <X size={24} />
-            </button>
-          </div>
-
-          {/* ビデオプレビュー */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-            width: '100%',
-            height: '100%',
-            minHeight: 0,
-            backgroundColor: '#000',
-          }}>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                width: '100vw',
-                height: '100vh',
-                minWidth: '100vw',
-                minHeight: '100vh',
-                objectFit: 'cover',
-                backgroundColor: '#000',
-                transform: 'scaleX(-1)',
-                zIndex: 0,
-              }}
+          {/* ビデオプレビュー - 最初に配置 */}
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              backgroundColor: '#000',
+              transform: 'scaleX(-1)',
+              zIndex: 0,
+            }}
               onLoadedMetadata={(e) => {
                 console.log('Video metadata loaded in JSX', {
                   videoWidth: e.currentTarget.videoWidth,
@@ -670,35 +621,76 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
                 console.error('Video error in JSX')
               }}
             />
-            {isAnalyzing && (
-              <div style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                backgroundColor: 'rgba(0,0,0,0.8)',
+          
+          {/* ヘッダー */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '1rem',
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            zIndex: 10,
+          }}>
+            <h3 style={{
+              margin: 0,
+              color: 'white',
+              fontSize: '18px',
+              fontWeight: 'bold',
+            }}>
+              レシートを撮影
+            </h3>
+            <button
+              onClick={stopCamera}
+              style={{
+                border: 'none',
+                backgroundColor: 'transparent',
                 color: 'white',
-                padding: '2rem',
-                borderRadius: '12px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '1rem',
-                zIndex: 10,
-              }}>
-                <Loader2 size={48} style={{ animation: 'spin 1s linear infinite' }} />
-                <span style={{ fontSize: '18px' }}>解析中...</span>
-              </div>
-            )}
+                cursor: 'pointer',
+                padding: '4px',
+              }}
+            >
+              <X size={24} />
+            </button>
           </div>
+
+          {/* 解析中オーバーレイ */}
+          {isAnalyzing && (
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              color: 'white',
+              padding: '2rem',
+              borderRadius: '12px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem',
+              zIndex: 20,
+            }}>
+              <Loader2 size={48} style={{ animation: 'spin 1s linear infinite' }} />
+              <span style={{ fontSize: '18px' }}>解析中...</span>
+            </div>
+          )}
 
           {/* コントロールボタン */}
           <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
             padding: '2rem',
             backgroundColor: 'rgba(0,0,0,0.7)',
             display: 'flex',
             justifyContent: 'center',
             gap: '1rem',
+            zIndex: 10,
           }}>
             <button
               onClick={captureAndAnalyze}
