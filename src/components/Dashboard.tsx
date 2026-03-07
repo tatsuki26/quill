@@ -88,7 +88,11 @@ export function Dashboard({ transactions, onNavigateToTransactions }: DashboardP
           </p>
         </div>
         <button
-          onClick={onNavigateToTransactions}
+          onClick={() => {
+            onNavigateToTransactions()
+            // URLパラメータを更新
+            window.history.pushState({}, '', '?page=transactions')
+          }}
           style={{
             display: 'flex',
             alignItems: 'center',

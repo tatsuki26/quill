@@ -31,7 +31,11 @@ function App() {
   const [showAssetManagement, setShowAssetManagement] = useState(false)
   const [showSettingsPage, setShowSettingsPage] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
-  const [showTransactions, setShowTransactions] = useState(false)
+  // URLパラメータから初期状態を取得
+  const [showTransactions, setShowTransactions] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('page') === 'transactions'
+  })
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -43,6 +47,12 @@ function App() {
       import('./components/TransactionList').then(module => {
         module.loadGlobalCategories()
       })
+      
+      // URLパラメータから状態を復元
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('page') === 'transactions') {
+        setShowTransactions(true)
+      }
     }
   }, [user])
 
@@ -276,6 +286,10 @@ function App() {
                 setShowReport(false)
                 setShowUpload(false)
                 setShowTransactions(false)
+                // URLパラメータを更新
+                if (showTransactions) {
+                  window.history.replaceState({}, '', window.location.pathname)
+                }
               }}
               style={{
                 border: 'none',
@@ -415,7 +429,7 @@ function App() {
 
       {showReport ? (
         <UsageReport transactions={filteredTransactions} />
-      ) : showTransactions ? (
+      ) : (showTransactions || new URLSearchParams(window.location.search).get('page') === 'transactions') ? (
         <>
           <FilterBar
             filters={filters}
@@ -454,7 +468,11 @@ function App() {
       ) : (
         <Dashboard
           transactions={transactions}
-          onNavigateToTransactions={() => setShowTransactions(true)}
+          onNavigateToTransactions={() => {
+            setShowTransactions(true)
+            // URLパラメータを更新
+            window.history.pushState({}, '', '?page=transactions')
+          }}
         />
       )}
 
