@@ -11,7 +11,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 const AUTH_PASSWORD = import.meta.env.VITE_AUTH_PASSWORD || 'family2026'
-const ADMIN_USERNAME = 'admin'
+const ADMIN_USERNAME = 'tatsukichi2662'
+const VIEWER_USERNAME = 'rina2910'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -30,6 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     if (password !== AUTH_PASSWORD) {
+      return false
+    }
+
+    // 有効なユーザー名かチェック
+    if (username !== ADMIN_USERNAME && username !== VIEWER_USERNAME) {
       return false
     }
 

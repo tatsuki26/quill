@@ -14,7 +14,11 @@ export function Login() {
 
     const success = await login(username, password)
     if (!success) {
-      setError('パスワードが正しくありません')
+      if (username !== 'tatsukichi2662' && username !== 'rina2910') {
+        setError('ユーザー名が正しくありません')
+      } else {
+        setError('パスワードが正しくありません')
+      }
     }
   }
 
@@ -69,7 +73,7 @@ export function Login() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin または viewer"
+              placeholder="tatsukichi2662 または rina2910"
               required
               style={{
                 width: '100%',
@@ -151,8 +155,8 @@ export function Login() {
           color: '#666',
         }}>
           <div style={{ marginBottom: '0.5rem' }}>ユーザー名:</div>
-          <div style={{ marginBottom: '0.5rem' }}>• admin: 管理者（データ管理・設定可能）</div>
-          <div>• viewer: 閲覧者（閲覧のみ）</div>
+          <div style={{ marginBottom: '0.5rem' }}>• tatsukichi2662: 管理者（データ管理・設定可能）</div>
+          <div>• rina2910: 閲覧者（閲覧のみ）</div>
         </div>
       </div>
     </div>
