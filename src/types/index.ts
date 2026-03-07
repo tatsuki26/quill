@@ -29,6 +29,16 @@ export interface CategoryMapping {
   updated_at: string
 }
 
+export interface Category {
+  id: string
+  name: string
+  color_bg: string
+  color_text: string
+  display_order: number
+  created_at: string
+  updated_at: string
+}
+
 export interface DefaultHiddenSetting {
   id: string
   setting_type: 'payment_method' | 'transaction_type'

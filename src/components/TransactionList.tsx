@@ -1,9 +1,31 @@
-import { Transaction } from '../types'
+import { Transaction, Category } from '../types'
 import { formatTransactionDate, formatMonthHeader } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Edit2, Check, X } from 'lucide-react'
-import { CATEGORIES } from '../lib/gemini'
+import { getCategories } from '../lib/gemini'
+import { supabase } from '../lib/supabase'
+
+// カテゴリを共有するためのコンテキスト（簡易実装）
+let globalCategories: Category[] = []
+let globalCategoryNames: string[] = []
+
+export async function loadGlobalCategories() {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .order('display_order', { ascending: true })
+
+    if (error) throw error
+
+    globalCategories = data || []
+    globalCategoryNames = data?.map(c => c.name) || []
+  } catch (error) {
+    console.error('Error loading categories:', error)
+    globalCategoryNames = await getCategories()
+  }
+}
 
 interface TransactionListProps {
   transactions: Transaction[]
@@ -12,6 +34,19 @@ interface TransactionListProps {
 }
 
 export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }: TransactionListProps) {
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryNames, setCategoryNames] = useState<string[]>([])
+
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  const loadCategories = async () => {
+    await loadGlobalCategories()
+    setCategories(globalCategories)
+    setCategoryNames(globalCategoryNames)
+  }
+
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
     
@@ -376,38 +411,36 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [category, setCategory] = useState(transaction.category || 'その他')
   const [isSaving, setIsSaving] = useState(false)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [categoryNames, setCategoryNames] = useState<string[]>([])
 
-  const getCategoryBadge = (category: string | null) => {
-    if (!category) return null
+  useEffect(() => {
+    loadCategories()
+  }, [])
+
+  const loadCategories = async () => {
+    await loadGlobalCategories()
+    setCategories(globalCategories)
+    setCategoryNames(globalCategoryNames)
+  }
+
+  const getCategoryBadge = (categoryName: string | null) => {
+    if (!categoryName) return null
     
-    const categoryColors: Record<string, { bg: string; color: string }> = {
-      '外食': { bg: '#ffe5e5', color: '#cc0000' },
-      'コンビニ': { bg: '#e5f3ff', color: '#0066cc' },
-      'スーパー': { bg: '#e5ffe5', color: '#00cc00' },
-      'ドラッグストア': { bg: '#fff0e5', color: '#cc6600' },
-      'ショッピング': { bg: '#f0e5ff', color: '#6600cc' },
-      'ガソリン': { bg: '#ffffe5', color: '#cccc00' },
-      '医療': { bg: '#ffe5f0', color: '#cc0066' },
-      '交通': { bg: '#e5ffff', color: '#00cccc' },
-      '娯楽': { bg: '#ffe5ff', color: '#cc00cc' },
-      '投資': { bg: '#f5f5f5', color: '#666666' },
-      '公共料金': { bg: '#e5e5ff', color: '#0000cc' },
-      '食費': { bg: '#fff5e5', color: '#cc3300' },
-      'その他': { bg: '#f0f0f0', color: '#666666' },
-    }
-    
-    const colors = categoryColors[category] || categoryColors['その他']
+    const categoryData = categories.find(c => c.name === categoryName)
+    const bg = categoryData?.color_bg || '#f0f0f0'
+    const text = categoryData?.color_text || '#666666'
     
     return (
       <span style={{
-        backgroundColor: colors.bg,
-        color: colors.color,
+        backgroundColor: bg,
+        color: text,
         padding: '4px 10px',
         borderRadius: '12px',
         fontSize: '12px',
         fontWeight: 'bold',
       }}>
-        {category}
+        {categoryName}
       </span>
     )
   }
@@ -451,7 +484,7 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
             fontSize: '13px',
           }}
         >
-          {CATEGORIES.map(cat => (
+          {categoryNames.map(cat => (
             <option key={cat} value={cat}>{cat}</option>
           ))}
         </select>

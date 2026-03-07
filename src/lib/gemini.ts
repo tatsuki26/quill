@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { supabase } from './supabase'
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
@@ -8,24 +9,23 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey)
 
-// カテゴリ定義
-export const CATEGORIES = [
-  '外食',
-  'コンビニ',
-  'スーパー',
-  'ドラッグストア',
-  'ショッピング',
-  'ガソリン',
-  '医療',
-  '交通',
-  '娯楽',
-  '投資',
-  '公共料金',
-  '食費',
-  'その他',
-] as const
+// DBからカテゴリを取得
+export async function getCategories(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('name')
+      .order('display_order', { ascending: true })
 
-export type Category = typeof CATEGORIES[number]
+    if (error) throw error
+
+    return data?.map(c => c.name) || ['その他']
+  } catch (error) {
+    console.error('Error loading categories:', error)
+    // フォールバック: デフォルトカテゴリ
+    return ['外食', 'コンビニ', 'スーパー', 'ドラッグストア', 'ショッピング', 'ガソリン', '医療', '交通', '娯楽', '投資', '公共料金', '食費', 'その他']
+  }
+}
 
 export async function categorizeMerchant(merchantName: string): Promise<string> {
   // Gemini 2.5 Flash-Liteを使用
@@ -42,8 +42,9 @@ export async function categorizeMerchant(merchantName: string): Promise<string> 
     }
   }
 
-  const categoryList = CATEGORIES.map((cat) => `- ${cat}`).join('\n')
-  const categoryExamples = CATEGORIES.map((cat) => `"${cat}"`).join(', ')
+  const categories = await getCategories()
+  const categoryList = categories.map((cat) => `- ${cat}`).join('\n')
+  const categoryExamples = categories.map((cat) => `"${cat}"`).join(', ')
 
   const prompt = `店舗名をカテゴリに分類してください。
 
@@ -79,13 +80,13 @@ Amazon.co.jp → ショッピング
       .trim()
     
     // 完全一致で確認
-    if (CATEGORIES.includes(category as Category)) {
+    if (categories.includes(category)) {
       console.log(`[Gemini Individual] Exact match for "${merchantName}": "${category}"`)
       return category
     }
     
     // 部分一致で確認（大文字小文字を無視）
-    const matchedCategory = CATEGORIES.find(cat => {
+    const matchedCategory = categories.find(cat => {
       const catLower = cat.toLowerCase()
       const categoryLower = category.toLowerCase()
       return categoryLower === catLower || 
@@ -142,8 +143,9 @@ async function categorizeMerchantsBatchInternal(merchantNames: string[]): Promis
     }
   }
 
-  const categoryList = CATEGORIES.map((cat) => `- ${cat}`).join('\n')
-  const categoryExamples = CATEGORIES.map((cat) => `"${cat}"`).join(', ')
+  const categories = await getCategories()
+  const categoryList = categories.map((cat) => `- ${cat}`).join('\n')
+  const categoryExamples = categories.map((cat) => `"${cat}"`).join(', ')
 
   const prompt = `あなたは店舗名をカテゴリに分類する専門家です。
 
@@ -219,14 +221,14 @@ ${merchantNames.map((name, i) => `${i + 1}. ${name}`).join('\n')}
           .trim()
         
         // 完全一致で確認
-        if (CATEGORIES.includes(category as Category)) {
+        if (categories.includes(category)) {
           categoryMap[name] = category
           successCount++
           return
         }
         
         // 部分一致で確認（大文字小文字を無視）
-        const matchedCategory = CATEGORIES.find(cat => {
+        const matchedCategory = categories.find(cat => {
           const catLower = cat.toLowerCase()
           const categoryLower = category.toLowerCase()
           return categoryLower === catLower || 

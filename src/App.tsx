@@ -11,6 +11,7 @@ import { Transaction, FilterType } from './types'
 import { ArrowLeft, BarChart3, Upload as UploadIcon, Settings, LogOut, RefreshCw } from 'lucide-react'
 import { DefaultHiddenSettings } from './components/DefaultHiddenSettings'
 import { RecategorizeButton } from './components/RecategorizeButton'
+import { CategoryManagement } from './components/CategoryManagement'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
@@ -21,12 +22,17 @@ function App() {
   const [showReport, setShowReport] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (user) {
       initializeDefaultSettings()
       loadTransactions()
+      // カテゴリを事前にロード
+      import('./components/TransactionList').then(module => {
+        module.loadGlobalCategories()
+      })
     }
   }, [user])
 
@@ -297,7 +303,10 @@ function App() {
                 <UploadIcon size={24} />
               </button>
               <button
-                onClick={() => setShowSettings(true)}
+                onClick={() => {
+                  setShowSettings(false)
+                  setShowCategoryManagement(!showCategoryManagement)
+                }}
                 style={{
                   border: 'none',
                   backgroundColor: 'transparent',
@@ -305,6 +314,7 @@ function App() {
                   cursor: 'pointer',
                   padding: '4px',
                 }}
+                title="カテゴリ管理"
               >
                 <Settings size={24} />
               </button>
@@ -388,6 +398,15 @@ function App() {
             />
           )}
         </>
+      )}
+
+      {showCategoryManagement && isAdmin && (
+        <CategoryManagement
+          onClose={() => {
+            setShowCategoryManagement(false)
+            loadTransactions()
+          }}
+        />
       )}
 
       {showSettings && isAdmin && (

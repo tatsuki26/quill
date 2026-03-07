@@ -33,6 +33,17 @@ CREATE TABLE category_mappings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- カテゴリテーブル
+CREATE TABLE categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  color_bg TEXT NOT NULL,
+  color_text TEXT NOT NULL,
+  display_order INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- デフォルト非表示設定テーブル
 CREATE TABLE default_hidden_settings (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -54,11 +65,13 @@ CREATE INDEX idx_transactions_payment_method ON transactions(payment_method);
 -- RLS (Row Level Security) ポリシー
 ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE category_mappings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE default_hidden_settings ENABLE ROW LEVEL SECURITY;
 
 -- 全ユーザーが読み取り可能
 CREATE POLICY "Allow read access" ON transactions FOR SELECT USING (true);
 CREATE POLICY "Allow read access" ON category_mappings FOR SELECT USING (true);
+CREATE POLICY "Allow read access" ON categories FOR SELECT USING (true);
 CREATE POLICY "Allow read access" ON default_hidden_settings FOR SELECT USING (true);
 
 -- 全ユーザーが挿入・更新可能（認証はアプリ側で制御）
@@ -66,6 +79,9 @@ CREATE POLICY "Allow insert access" ON transactions FOR INSERT WITH CHECK (true)
 CREATE POLICY "Allow update access" ON transactions FOR UPDATE USING (true);
 CREATE POLICY "Allow insert access" ON category_mappings FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow update access" ON category_mappings FOR UPDATE USING (true);
+CREATE POLICY "Allow insert access" ON categories FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow update access" ON categories FOR UPDATE USING (true);
+CREATE POLICY "Allow delete access" ON categories FOR DELETE USING (true);
 CREATE POLICY "Allow insert access" ON default_hidden_settings FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow update access" ON default_hidden_settings FOR UPDATE USING (true);
 CREATE POLICY "Allow delete access" ON default_hidden_settings FOR DELETE USING (true);
