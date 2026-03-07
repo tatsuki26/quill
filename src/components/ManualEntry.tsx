@@ -144,14 +144,21 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     }
   }, [date, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, category, memo, receiptDetails, onSave, onClose])
 
-  // カメラのクリーンアップ
+  // カメラのクリーンアップとビデオ要素の設定
   useEffect(() => {
+    if (isCameraMode && stream && videoRef.current) {
+      videoRef.current.srcObject = stream
+      videoRef.current.play().catch(err => {
+        console.error('Error playing video:', err)
+      })
+    }
+    
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop())
       }
     }
-  }, [stream])
+  }, [isCameraMode, stream])
 
   const loadCategories = async () => {
     try {
@@ -206,13 +213,24 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   const startCamera = async () => {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' } // 背面カメラを優先
+        video: { 
+          facingMode: 'environment', // 背面カメラを優先
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
       })
       setStream(mediaStream)
       setIsCameraMode(true)
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-      }
+      
+      // ビデオ要素の設定を待つ
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = mediaStream
+          videoRef.current.play().catch(err => {
+            console.error('Error playing video:', err)
+          })
+        }
+      }, 100)
     } catch (error) {
       console.error('Error accessing camera:', error)
       alert('カメラへのアクセスに失敗しました。ファイルアップロードを使用してください。')
@@ -398,16 +416,143 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   }, [date, amount, merchant, asset, category, memo, receiptImage, receiptDetails, hasAutoSaved, onSave, onClose])
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'white',
-      zIndex: 1000,
-      overflow: 'auto',
-    }}>
+    <>
+      {/* カメラモーダル（全画面） */}
+      {isCameraMode && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: '#000',
+          zIndex: 2000,
+          display: 'flex',
+          flexDirection: 'column',
+        }}>
+          {/* ヘッダー */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '1rem',
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            zIndex: 1,
+          }}>
+            <h3 style={{
+              margin: 0,
+              color: 'white',
+              fontSize: '18px',
+              fontWeight: 'bold',
+            }}>
+              レシートを撮影
+            </h3>
+            <button
+              onClick={stopCamera}
+              style={{
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: 'white',
+                cursor: 'pointer',
+                padding: '4px',
+              }}
+            >
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* ビデオプレビュー */}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+            overflow: 'hidden',
+          }}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                backgroundColor: '#000',
+              }}
+            />
+            {isAnalyzing && (
+              <div style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                backgroundColor: 'rgba(0,0,0,0.8)',
+                color: 'white',
+                padding: '2rem',
+                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '1rem',
+                zIndex: 10,
+              }}>
+                <Loader2 size={48} style={{ animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: '18px' }}>解析中...</span>
+              </div>
+            )}
+          </div>
+
+          {/* コントロールボタン */}
+          <div style={{
+            padding: '2rem',
+            backgroundColor: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '1rem',
+          }}>
+            <button
+              onClick={captureAndAnalyze}
+              disabled={isCapturing || isAnalyzing}
+              style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                border: '4px solid white',
+                backgroundColor: isCapturing || isAnalyzing ? '#666' : '#00C300',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: isCapturing || isAnalyzing ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              }}
+            >
+              {isCapturing || isAnalyzing ? (
+                <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <Camera size={32} />
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* メインフォーム */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'white',
+        zIndex: 1000,
+        overflow: 'auto',
+        display: isCameraMode ? 'none' : 'block',
+      }}>
       <div style={{
         maxWidth: '600px',
         margin: '0 auto',
