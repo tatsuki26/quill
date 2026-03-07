@@ -106,15 +106,14 @@ export function TransactionList({ transactions, onToggleHide, isAdmin = false }:
               {month}
             </div>
             {txs.map((tx) => (
-              <div
+                <div
                 key={tx.id}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   padding: '1rem',
                   borderBottom: '1px solid #f0f0f0',
-                  backgroundColor: tx.is_hidden ? '#fafafa' : 'white',
-                  opacity: tx.is_hidden ? 0.5 : 1,
+                  backgroundColor: 'white',
                 }}
               >
                 <div style={{ marginRight: '1rem' }}>
@@ -192,25 +191,6 @@ export function TransactionList({ transactions, onToggleHide, isAdmin = false }:
                     </div>
                   )}
                 </div>
-                
-                {isAdmin && onToggleHide && (
-                  <div style={{ marginLeft: '0.5rem' }}>
-                    <button
-                      onClick={() => onToggleHide(tx.id, !tx.is_hidden)}
-                      style={{
-                        padding: '4px 8px',
-                        border: 'none',
-                        backgroundColor: tx.is_hidden ? '#00C300' : '#ccc',
-                        color: 'white',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                      }}
-                    >
-                      {tx.is_hidden ? '表示' : '非表示'}
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>

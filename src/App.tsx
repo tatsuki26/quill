@@ -44,6 +44,7 @@ function App() {
       // デフォルト設定を追加（存在しない場合のみ）
       const defaultSettings = [
         { setting_type: 'payment_method', value: 'PayPay残高' },
+        { setting_type: 'payment_method', value: 'PayPayポイント' },
         { setting_type: 'transaction_type', value: 'ポイント、残高の獲得' },
       ]
 
@@ -105,10 +106,11 @@ function App() {
         await Promise.all(updatePromises)
       }
 
-      // 最新のデータを再取得
+      // 最新のデータを再取得（非表示データは除外）
       const { data: updatedData, error: updateError } = await supabase
         .from('transactions')
         .select('*')
+        .eq('is_hidden', false)
         .order('transaction_date', { ascending: false })
 
       if (updateError) throw updateError
@@ -124,11 +126,8 @@ function App() {
   const applyFilters = () => {
     let filtered = [...transactions]
 
-    // デフォルト非表示設定を適用
-    if (!isAdmin) {
-      // 閲覧者は非表示設定を適用
-      filtered = filtered.filter(tx => !tx.is_hidden)
-    }
+    // 非表示データは全員（管理者含む）に表示しない
+    filtered = filtered.filter(tx => !tx.is_hidden)
 
     // フィルター適用
     if (filters.dateFrom) {
@@ -169,23 +168,6 @@ function App() {
     setFilteredTransactions(filtered)
   }
 
-  const handleToggleHide = async (id: string, isHidden: boolean) => {
-    try {
-      const { error } = await supabase
-        .from('transactions')
-        .update({ is_hidden: isHidden })
-        .eq('id', id)
-
-      if (error) throw error
-
-      setTransactions(prev =>
-        prev.map(tx => (tx.id === id ? { ...tx, is_hidden: isHidden } : tx))
-      )
-    } catch (error) {
-      console.error('Error updating transaction:', error)
-      alert('非表示設定の更新に失敗しました')
-    }
-  }
 
   const paymentMethods = Array.from(new Set(transactions.map(tx => tx.payment_method)))
   const transactionTypes = Array.from(new Set(transactions.map(tx => tx.transaction_type)))
@@ -314,7 +296,6 @@ function App() {
           ) : (
             <TransactionList
               transactions={filteredTransactions}
-              onToggleHide={isAdmin ? handleToggleHide : undefined}
               isAdmin={isAdmin}
             />
           )}
