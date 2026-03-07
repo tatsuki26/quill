@@ -218,32 +218,6 @@ export function TransactionDetail({ transaction, onClose }: TransactionDetailPro
           </div>
         )}
 
-        {/* レシート画像 */}
-        {transaction.receipt_image && (
-          <div style={{
-            marginBottom: '1rem',
-          }}>
-            <h3 style={{
-              fontSize: '16px',
-              fontWeight: 'bold',
-              marginBottom: '0.75rem',
-            }}>
-              レシート画像
-            </h3>
-            <img
-              src={`data:image/jpeg;base64,${transaction.receipt_image}`}
-              alt="Receipt"
-              style={{
-                width: '100%',
-                maxHeight: '400px',
-                objectFit: 'contain',
-                borderRadius: '8px',
-                border: '1px solid #e0e0e0',
-              }}
-            />
-          </div>
-        )}
-
         {/* その他の情報 */}
         <div style={{
           padding: '1rem',
@@ -272,6 +246,43 @@ export function TransactionDetail({ transaction, onClose }: TransactionDetailPro
             </div>
           )}
         </div>
+
+        {/* レシート画像（下部に表示） */}
+        {transaction.receipt_image && (
+          <div style={{
+            marginTop: '1.5rem',
+            marginBottom: '1rem',
+          }}>
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              <Receipt size={18} color="#666" />
+              レシート画像
+            </h3>
+            <div style={{
+              backgroundColor: '#f9f9f9',
+              borderRadius: '8px',
+              padding: '0.5rem',
+              border: '1px solid #e0e0e0',
+            }}>
+              <img
+                src={`data:image/jpeg;base64,${transaction.receipt_image}`}
+                alt="Receipt"
+                style={{
+                  width: '100%',
+                  maxHeight: '600px',
+                  objectFit: 'contain',
+                  borderRadius: '4px',
+                }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
