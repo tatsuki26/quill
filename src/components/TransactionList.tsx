@@ -34,7 +34,7 @@ interface TransactionListProps {
   onShowDetail?: (transaction: Transaction) => void
 }
 
-export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory }: TransactionListProps) {
+export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory, onShowDetail }: TransactionListProps) {
 
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
