@@ -187,7 +187,40 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
         }
         
         const handlePlay = () => {
-          console.log('Video is playing')
+          const rect = video.getBoundingClientRect()
+          const computedStyle = window.getComputedStyle(video)
+          console.log('Video is playing', {
+            paused: video.paused,
+            ended: video.ended,
+            readyState: video.readyState,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            clientWidth: video.clientWidth,
+            clientHeight: video.clientHeight,
+            offsetWidth: video.offsetWidth,
+            offsetHeight: video.offsetHeight,
+            rect: {
+              width: rect.width,
+              height: rect.height,
+              top: rect.top,
+              left: rect.left
+            },
+            style: {
+              width: video.style.width,
+              height: video.style.height,
+              display: video.style.display,
+              position: video.style.position,
+            },
+            computedStyle: {
+              width: computedStyle.width,
+              height: computedStyle.height,
+              display: computedStyle.display,
+              position: computedStyle.position,
+              visibility: computedStyle.visibility,
+              opacity: computedStyle.opacity,
+              zIndex: computedStyle.zIndex,
+            }
+          })
         }
         
         const handleError = (e: any) => {
@@ -558,6 +591,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             width: '100%',
             height: '100%',
             minHeight: 0,
+            backgroundColor: '#000',
           }}>
             <video
               ref={videoRef}
