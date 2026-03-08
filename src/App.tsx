@@ -418,6 +418,48 @@ function App() {
       {showUpload && isAdmin && (
         <div style={{ padding: '1rem' }}>
           <CSVUpload onUploadComplete={loadTransactions} />
+          {/* PayPayアプリへのリンク */}
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem 1rem',
+            backgroundColor: '#fff',
+            borderRadius: '8px',
+            border: '1px solid #e0e0e0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+          }}>
+            <span style={{ fontSize: '13px', color: '#666' }}>CSVのダウンロードはこちら：</span>
+            <a
+              href="paypay://"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.4rem 0.9rem',
+                backgroundColor: '#ff0033',
+                color: 'white',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                textDecoration: 'none',
+              }}
+            >
+              PayPayアプリを開く
+            </a>
+            <a
+              href="https://www.paypay.ne.jp/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: '12px',
+                color: '#888',
+                textDecoration: 'underline',
+              }}
+            >
+              ウェブ版
+            </a>
+          </div>
         </div>
       )}
 
