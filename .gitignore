@@ -30,5 +30,3 @@ dist-ssr
 
 # Data files
 data/*.csv
-.vercel
-.env*.local

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { X, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Category, Asset } from '../types'
@@ -144,192 +145,15 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     }
   }, [date, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, category, memo, receiptDetails, onSave, onClose])
 
-  // カメラのクリーンアップとビデオ要素の設定
+  // カメラストリームをビデオ要素に設定（startCamera内で直接管理するため、このuseEffectは最小限）
   useEffect(() => {
-    if (!isCameraMode || !stream) return
-    
-    // ビデオ要素が確実に存在するまで待つ
-    const setupVideo = () => {
-      if (videoRef.current) {
-        const video = videoRef.current
-        console.log('Setting up video element', { 
-          stream: { 
-            id: stream.id, 
-            active: stream.active,
-            tracks: stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }))
-          }, 
-          video 
-        })
-        
-        // ストリームを設定
-        video.srcObject = stream
-        
-        // 強制的にスタイルを設定（親要素に完全に依存しない）
-        const setVideoSize = () => {
-          const w = window.innerWidth
-          const h = window.innerHeight
-          video.style.position = 'fixed'
-          video.style.top = '0px'
-          video.style.left = '0px'
-          video.style.width = w + 'px'
-          video.style.height = h + 'px'
-          video.style.minWidth = w + 'px'
-          video.style.minHeight = h + 'px'
-          video.style.maxWidth = w + 'px'
-          video.style.maxHeight = h + 'px'
-          video.style.objectFit = 'cover'
-          video.style.backgroundColor = '#000'
-          video.style.transform = 'scaleX(-1)'
-          video.style.zIndex = '0'
-          video.style.display = 'block'
-          video.style.visibility = 'visible'
-          video.style.opacity = '1'
-          console.log('Video style set:', {
-            width: video.style.width,
-            height: video.style.height,
-            position: video.style.position
-          })
-        }
-        
-        setVideoSize()
-        
-        // 複数回試行して確実にサイズを設定
-        setTimeout(() => {
-          const rect = video.getBoundingClientRect()
-          console.log('Video rect after style setting:', rect)
-          if (rect.width === 0 || rect.height === 0) {
-            console.error('Video still has zero size, forcing dimensions again')
-            setVideoSize()
-            // もう一度試行
-            setTimeout(() => {
-              const rect2 = video.getBoundingClientRect()
-              if (rect2.width === 0 || rect2.height === 0) {
-                console.error('Video STILL has zero size, using canvas approach')
-                // 最後の手段：canvasに描画
-                const canvas = document.createElement('canvas')
-                canvas.width = window.innerWidth
-                canvas.height = window.innerHeight
-                const ctx = canvas.getContext('2d')
-                if (ctx) {
-                  const drawFrame = () => {
-                    if (video.videoWidth > 0 && video.videoHeight > 0) {
-                      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-                    }
-                    requestAnimationFrame(drawFrame)
-                  }
-                  drawFrame()
-                  // canvasをvideoの代わりに表示する方法を検討
-                }
-              }
-            }, 100)
-          }
-        }, 100)
-        
-        // ビデオが読み込まれたら再生
-        const handleLoadedMetadata = () => {
-          console.log('Video metadata loaded', { 
-            videoWidth: video.videoWidth, 
-            videoHeight: video.videoHeight,
-            readyState: video.readyState
-          })
-          video.play().catch(err => {
-            console.error('Error playing video:', err)
-          })
-        }
-        
-        const handleCanPlay = () => {
-          console.log('Video can play', { 
-            videoWidth: video.videoWidth, 
-            videoHeight: video.videoHeight 
-          })
-          video.play().catch(err => {
-            console.error('Error playing video:', err)
-          })
-        }
-        
-        const handlePlay = () => {
-          const rect = video.getBoundingClientRect()
-          const computedStyle = window.getComputedStyle(video)
-          console.log('Video is playing', {
-            paused: video.paused,
-            ended: video.ended,
-            readyState: video.readyState,
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            clientWidth: video.clientWidth,
-            clientHeight: video.clientHeight,
-            offsetWidth: video.offsetWidth,
-            offsetHeight: video.offsetHeight,
-            rect: {
-              width: rect.width,
-              height: rect.height,
-              top: rect.top,
-              left: rect.left
-            },
-            style: {
-              width: video.style.width,
-              height: video.style.height,
-              display: video.style.display,
-              position: video.style.position,
-            },
-            computedStyle: {
-              width: computedStyle.width,
-              height: computedStyle.height,
-              display: computedStyle.display,
-              position: computedStyle.position,
-              visibility: computedStyle.visibility,
-              opacity: computedStyle.opacity,
-              zIndex: computedStyle.zIndex,
-            }
-          })
-        }
-        
-        const handleError = (e: any) => {
-          console.error('Video error:', e)
-        }
-        
-        video.addEventListener('loadedmetadata', handleLoadedMetadata)
-        video.addEventListener('canplay', handleCanPlay)
-        video.addEventListener('play', handlePlay)
-        video.addEventListener('error', handleError)
-        
-        // 即座に再生を試みる
-        const playPromise = video.play()
-        if (playPromise !== undefined) {
-          playPromise.catch(err => {
-            console.error('Error playing video immediately:', err)
-          })
-        }
-        
-        return () => {
-          console.log('Cleaning up video event listeners')
-          video.removeEventListener('loadedmetadata', handleLoadedMetadata)
-          video.removeEventListener('canplay', handleCanPlay)
-          video.removeEventListener('play', handlePlay)
-          video.removeEventListener('error', handleError)
-        }
-      } else {
-        console.log('Video ref not available yet, retrying...')
-        setTimeout(setupVideo, 100)
-      }
-    }
-    
-    const cleanup = setupVideo()
-    
-    // クリーンアップ関数（コンポーネントのアンマウント時のみ実行）
     return () => {
-      console.log('useEffect cleanup - isCameraMode:', isCameraMode)
-      if (cleanup) cleanup()
-      // ストリームのクリーンアップは、カメラモードが無効になった時のみ
-      if (!isCameraMode && stream) {
-        console.log('Stopping stream tracks')
-        stream.getTracks().forEach(track => {
-          track.stop()
-          console.log('Stopped track:', track.kind)
-        })
+      // アンマウント時にストリームをクリーンアップ
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop())
       }
     }
-  }, [isCameraMode, stream])
+  }, [stream])
 
   const loadCategories = async () => {
     try {
@@ -383,26 +207,24 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
   const startCamera = async () => {
     try {
-      console.log('Requesting camera access...')
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'environment', // 背面カメラを優先
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      })
-      console.log('Camera access granted', { 
-        tracks: mediaStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState }))
+        video: { facingMode: 'environment' }
       })
       
-      // ストリームを設定してからカメラモードを有効化
       setStream(mediaStream)
-      
-      // 少し待ってからカメラモードを有効化（DOM更新を待つ）
-      setTimeout(() => {
-        setIsCameraMode(true)
-        console.log('Camera mode enabled')
-      }, 100)
+      setIsCameraMode(true)
+
+      // DOMにビデオ要素が追加されるのを待ってからsrcObjectを設定
+      const attachStream = (attempts = 0) => {
+        const video = document.getElementById('camera-video') as HTMLVideoElement | null
+        if (video) {
+          video.srcObject = mediaStream
+          video.play().catch(() => {})
+        } else if (attempts < 30) {
+          setTimeout(() => attachStream(attempts + 1), 50)
+        }
+      }
+      setTimeout(attachStream, 0)
     } catch (error) {
       console.error('Error accessing camera:', error)
       alert('カメラへのアクセスに失敗しました。ファイルアップロードを使用してください。')
@@ -410,16 +232,13 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   }
 
   const stopCamera = () => {
-    console.log('Stopping camera')
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-      videoRef.current.pause()
+    const video = document.getElementById('camera-video') as HTMLVideoElement | null
+    if (video) {
+      video.srcObject = null
+      video.pause()
     }
     if (stream) {
-      stream.getTracks().forEach(track => {
-        track.stop()
-        console.log('Stopped track:', track.kind)
-      })
+      stream.getTracks().forEach(track => track.stop())
       setStream(null)
     }
     setIsCameraMode(false)
@@ -594,23 +413,21 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
   return (
     <>
-      {/* カメラモーダル（全画面） */}
-      {isCameraMode && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: '#000',
-          zIndex: 2000,
-          width: '100vw',
-          height: '100vh',
-          overflow: 'hidden',
-        }}>
-          {/* ビデオプレビュー - 最初に配置 */}
+      {/* カメラモーダル（全画面） - createPortalでdocument.bodyに直接レンダリング */}
+      {isCameraMode && createPortal(
+        <div 
+          id="camera-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: '#000',
+            zIndex: 2000,
+          }}
+        >
+          {/* ビデオプレビュー - position:fixedで親から独立してビューポート全体を占有 */}
           <video
             ref={videoRef}
+            id="camera-video"
             autoPlay
             playsInline
             muted
@@ -618,49 +435,17 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
               position: 'fixed',
               top: 0,
               left: 0,
-              right: 0,
-              bottom: 0,
               width: '100vw',
               height: '100vh',
-              minWidth: '100vw',
-              minHeight: '100vh',
               objectFit: 'cover',
               backgroundColor: '#000',
-              transform: 'scaleX(-1)',
-              zIndex: 0,
+              zIndex: 2001,
             }}
-              onLoadedMetadata={(e) => {
-                console.log('Video metadata loaded in JSX', {
-                  videoWidth: e.currentTarget.videoWidth,
-                  videoHeight: e.currentTarget.videoHeight,
-                  readyState: e.currentTarget.readyState
-                })
-                const video = e.currentTarget
-                video.play().catch(err => {
-                  console.error('Error playing video in onLoadedMetadata:', err)
-                })
-              }}
-              onCanPlay={(e) => {
-                console.log('Video can play in JSX', {
-                  videoWidth: e.currentTarget.videoWidth,
-                  videoHeight: e.currentTarget.videoHeight
-                })
-                const video = e.currentTarget
-                video.play().catch(err => {
-                  console.error('Error playing video in onCanPlay:', err)
-                })
-              }}
-              onPlay={() => {
-                console.log('Video is playing in JSX')
-              }}
-              onError={() => {
-                console.error('Video error in JSX')
-              }}
-            />
+          />
           
           {/* ヘッダー */}
           <div style={{
-            position: 'absolute',
+            position: 'fixed',
             top: 0,
             left: 0,
             right: 0,
@@ -669,7 +454,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             alignItems: 'center',
             padding: '1rem',
             backgroundColor: 'rgba(0,0,0,0.7)',
-            zIndex: 10,
+            zIndex: 2010,
           }}>
             <h3 style={{
               margin: 0,
@@ -696,7 +481,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           {/* 解析中オーバーレイ */}
           {isAnalyzing && (
             <div style={{
-              position: 'absolute',
+              position: 'fixed',
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
@@ -708,7 +493,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
               flexDirection: 'column',
               alignItems: 'center',
               gap: '1rem',
-              zIndex: 20,
+              zIndex: 2010,
             }}>
               <Loader2 size={48} style={{ animation: 'spin 1s linear infinite' }} />
               <span style={{ fontSize: '18px' }}>解析中...</span>
@@ -717,7 +502,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
           {/* コントロールボタン */}
           <div style={{
-            position: 'absolute',
+            position: 'fixed',
             bottom: 0,
             left: 0,
             right: 0,
@@ -726,7 +511,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             display: 'flex',
             justifyContent: 'center',
             gap: '1rem',
-            zIndex: 10,
+            zIndex: 2010,
           }}>
             <button
               onClick={captureAndAnalyze}
@@ -754,7 +539,8 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
               )}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* メインフォーム */}
@@ -1026,12 +812,12 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
                   }}
                 >
                   キャンセル
-                </button>
-              </div>
-            </div>
-          )}
-          <canvas ref={canvasRef} style={{ display: 'none' }} />
-          {receiptImage && !isCameraMode && (
+            </button>
+          </div>
+        </div>
+      )}
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      {receiptImage && !isCameraMode && (
             <div style={{ marginTop: '0.5rem' }}>
               <img
                 src={`data:image/jpeg;base64,${receiptImage}`}
