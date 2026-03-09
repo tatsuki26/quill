@@ -64,16 +64,19 @@ export function analyzeFrameForReceipt(
   }
   const edgeDensity = edgeCount / luminances.length
 
-  // レシートの条件:
+  // レシートの条件（厳格化: 安定しているだけでは不十分、文書らしい特徴が必要）
   // - 輝度が適切（暗すぎず明るすぎず: 50-230）
-  // - コントラストが十分（テキストがある）
-  // - エッジ密度が十分（文書らしい）
-  const luminanceScore = avgLuminance >= 50 && avgLuminance <= 230 ? 1 : 0
-  const contrastScore = Math.min(1, contrast / 50)
-  const edgeScore = Math.min(1, edgeDensity / 0.2)
+  // - コントラストが十分（テキストがある: 最低25以上）
+  // - エッジ密度が十分（レシートは文字が多い: 最低0.12以上）
+  const luminanceOk = avgLuminance >= 50 && avgLuminance <= 230
+  const contrastOk = contrast >= 25
+  const edgeOk = edgeDensity >= 0.12
 
-  // 総合スコア（全ての条件を満たす必要がある）
-  const score = luminanceScore * (contrastScore * 0.4 + edgeScore * 0.6)
+  // 全ての条件を満たす場合のみスコア1、そうでなければ0
+  // 壁や机など単色の安定した画面では contrast/edge が低く、検出されない
+  const score = luminanceOk && contrastOk && edgeOk
+    ? 0.5 + Math.min(0.5, contrast / 80) * 0.5 + Math.min(0.5, edgeDensity / 0.25) * 0.5
+    : 0
 
   return {
     score,

@@ -56,6 +56,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
   const [isCameraMode, setIsCameraMode] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const previousFrameRef = useRef<Uint8ClampedArray | null>(null)
@@ -185,8 +186,8 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
 
     const ANALYSIS_INTERVAL = 500
     const STABLE_THRESHOLD = 4 // 2秒間安定（500ms × 4）
-    const RECEIPT_SCORE_THRESHOLD = 0.5
-    const STABILITY_THRESHOLD = 0.85
+    const RECEIPT_SCORE_THRESHOLD = 0.7
+    const STABILITY_THRESHOLD = 0.9
 
     const intervalId = setInterval(() => {
       const video = videoRef.current
@@ -304,7 +305,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
     }
   }
 
-  // ストリームをビデオ要素にアタッチ（モバイル対応: useEffectでレンダリング後に確実に実行）
+  // ストリームをビデオ要素にアタッチ（ビデオは非表示、Canvasに描画してプレビュー表示＝モバイル黒画面対策）
   useEffect(() => {
     if (!stream || !isCameraMode) return
 
@@ -316,23 +317,52 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
         video.setAttribute('playsinline', 'true')
         video.setAttribute('webkit-playsinline', 'true')
         video.playsInline = true
-
-        const playVideo = () => {
-          video.play().catch(err => console.warn('Video play:', err))
-        }
-
-        if (video.readyState >= 1) {
-          playVideo()
-        } else {
-          video.onloadedmetadata = () => setTimeout(playVideo, 100)
-        }
+        video.play().catch(() => {})
       } else if (attempts < 60) {
         setTimeout(() => attachStream(attempts + 1), 100)
       }
     }
     const timer = setTimeout(attachStream, 100)
-
     return () => clearTimeout(timer)
+  }, [stream, isCameraMode])
+
+  // Canvasにビデオを描画してプレビュー表示（モバイルでvideo要素が黒くなる問題の回避）
+  useEffect(() => {
+    if (!stream || !isCameraMode) return
+
+    const video = videoRef.current
+    const canvas = previewCanvasRef.current
+    if (!video || !canvas) return
+
+    const resize = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    resize()
+    window.addEventListener('resize', resize)
+
+    let rafId: number
+    const draw = () => {
+      if (video.readyState >= 2 && video.videoWidth > 0) {
+        const vw = video.videoWidth
+        const vh = video.videoHeight
+        const cw = canvas.width
+        const ch = canvas.height
+        const scale = Math.max(cw / vw, ch / vh)
+        const dw = vw * scale
+        const dh = vh * scale
+        const dx = (cw - dw) / 2
+        const dy = (ch - dh) / 2
+        const ctx = canvas.getContext('2d')
+        if (ctx) ctx.drawImage(video, 0, 0, vw, vh, dx, dy, dw, dh)
+      }
+      rafId = requestAnimationFrame(draw)
+    }
+    rafId = requestAnimationFrame(draw)
+    return () => {
+      cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', resize)
+    }
   }, [stream, isCameraMode])
 
   const stopCamera = () => {
@@ -540,7 +570,8 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
             zIndex: 2000,
           }}
         >
-          {/* ビデオプレビュー - モバイル対応（playsInline, transformでハードウェアアクセラレーション） */}
+          {/* ビデオ（背面・キャプチャ用）＋ Canvas（前面・プレビュー表示）
+              モバイルでvideoが黒く表示されるため、Canvasに描画してプレビューを表示 */}
           <video
             ref={videoRef}
             id="camera-video"
@@ -554,10 +585,19 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
               width: '100vw',
               height: '100vh',
               objectFit: 'cover',
+              zIndex: 2000,
+            }}
+          />
+          <canvas
+            ref={previewCanvasRef}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
               backgroundColor: '#000',
               zIndex: 2001,
-              transform: 'translate3d(0, 0, 0)',
-              WebkitTransform: 'translate3d(0, 0, 0)',
             }}
           />
           
