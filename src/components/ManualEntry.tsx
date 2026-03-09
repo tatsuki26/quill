@@ -4,6 +4,7 @@ import { X, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Category, Asset, Transaction } from '../types'
 import { parseReceiptImage, compressImage } from '../lib/geminiVision'
+import { analyzeFrameForReceipt, compareFrames } from '../utils/receiptDetection'
 
 interface ManualEntryProps {
   onClose: () => void
@@ -56,6 +57,11 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
   const [stream, setStream] = useState<MediaStream | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const analysisCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const previousFrameRef = useRef<Uint8ClampedArray | null>(null)
+  const hasAutoCapturedRef = useRef(false)
+  const stableCountRef = useRef(0)
+  const captureAndAnalyzeRef = useRef<() => Promise<void>>(() => Promise.resolve())
   const [isCapturing, setIsCapturing] = useState(false)
   const [readStatus, setReadStatus] = useState<{
     date: boolean
@@ -169,6 +175,66 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
     }
   }, [stream])
 
+  // レシート検出による自動撮影
+  useEffect(() => {
+    if (!isCameraMode || isCapturing || isAnalyzing) return
+
+    hasAutoCapturedRef.current = false
+    stableCountRef.current = 0
+    previousFrameRef.current = null
+
+    const ANALYSIS_INTERVAL = 500
+    const STABLE_THRESHOLD = 4 // 2秒間安定（500ms × 4）
+    const RECEIPT_SCORE_THRESHOLD = 0.5
+    const STABILITY_THRESHOLD = 0.85
+
+    const intervalId = setInterval(() => {
+      const video = videoRef.current
+      if (!video || video.readyState < 2 || hasAutoCapturedRef.current || isCapturing || isAnalyzing) return
+
+      const width = Math.min(video.videoWidth, 320)
+      const height = Math.min(video.videoHeight, 240)
+      if (width < 10 || height < 10) return
+
+      let analysisCanvas = analysisCanvasRef.current
+      if (!analysisCanvas) {
+        analysisCanvas = document.createElement('canvas')
+        analysisCanvas.width = width
+        analysisCanvas.height = height
+        analysisCanvasRef.current = analysisCanvas
+      }
+      const ctx = analysisCanvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.drawImage(video, 0, 0, width, height)
+      const imageData = ctx.getImageData(0, 0, width, height)
+
+      const { score } = analyzeFrameForReceipt(ctx, width, height)
+
+      let stability = 1
+      if (previousFrameRef.current && previousFrameRef.current.length === imageData.data.length) {
+        stability = compareFrames(previousFrameRef.current, imageData.data)
+      }
+      previousFrameRef.current = new Uint8ClampedArray(imageData.data)
+
+      if (score >= RECEIPT_SCORE_THRESHOLD && stability >= STABILITY_THRESHOLD) {
+        stableCountRef.current++
+        if (stableCountRef.current >= STABLE_THRESHOLD) {
+          hasAutoCapturedRef.current = true
+          captureAndAnalyzeRef.current()
+        }
+      } else {
+        stableCountRef.current = 0
+      }
+    }, ANALYSIS_INTERVAL)
+
+    return () => {
+      clearInterval(intervalId)
+      analysisCanvasRef.current = null
+      previousFrameRef.current = null
+    }
+  }, [isCameraMode, isCapturing, isAnalyzing])
+
   const loadCategories = async () => {
     try {
       const { data, error } = await supabase
@@ -258,7 +324,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
     setIsCameraMode(false)
   }
 
-  const captureAndAnalyze = async () => {
+  const captureAndAnalyze = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current) return
 
     setIsCapturing(true)
@@ -320,7 +386,9 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
       console.error('Error capturing image:', error)
       setIsCapturing(false)
     }
-  }
+  }, [])
+
+  captureAndAnalyzeRef.current = captureAndAnalyze
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
