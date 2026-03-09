@@ -1,5 +1,5 @@
 import { Transaction, Category } from '../types'
-import { formatTransactionDate, formatMonthHeader } from '../utils/dateUtils'
+import { formatTransactionDate, formatMonthHeader, parseDate } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
 import { useMemo, useState, useEffect } from 'react'
 import { Edit2, Check, X } from 'lucide-react'
@@ -45,6 +45,15 @@ export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory, 
         groups[month] = []
       }
       groups[month].push(tx)
+    })
+    
+    // 各月内の取引を日付の新しい順（降順）でソート
+    Object.keys(groups).forEach(month => {
+      groups[month].sort((a, b) => {
+        const dateA = parseDate(a.transaction_date)
+        const dateB = parseDate(b.transaction_date)
+        return dateB.getTime() - dateA.getTime()
+      })
     })
     
     return groups

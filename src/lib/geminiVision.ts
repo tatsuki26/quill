@@ -16,6 +16,7 @@ export interface ReceiptItem {
 
 export interface ReceiptParseResult {
   date: string | null
+  time?: string | null  // HH:mm または HH:mm:ss 形式（レシートに記載がある場合）
   amount: number | null
   merchant: string | null
   category: string | null
@@ -53,21 +54,31 @@ export async function parseReceiptImage(imageBase64: string): Promise<ReceiptPar
 
 抽出する情報：
 1. 日付（YYYY/MM/DD形式、またはYYYY-MM-DD形式）
-2. 合計金額（数値のみ、円や¥記号は除く）
-3. 店舗名（店名、店舗名）
-4. カテゴリ（以下のカテゴリから最も適切なものを選択：${categoryList}）
+2. 時刻（レシートに記載がある場合のみ、HH:mm形式）
+3. 合計金額（数値のみ、円や¥記号は除く）
+4. 店舗名（店名、店舗名）
+5. カテゴリ（以下のカテゴリから最も適切なものを選択：${categoryList}）
+6. 購入商品明細（レシートに記載されている商品・サービスの一覧。各項目は商品名と金額のペア）
 
 以下のJSON形式で返答してください：
 {
   "date": "YYYY/MM/DD形式の日付（見つからない場合はnull）",
+  "time": "HH:mm形式の時刻（レシートに記載がない場合はnull）",
   "amount": 数値（見つからない場合はnull）,
   "merchant": "店舗名（見つからない場合はnull）",
-  "category": "カテゴリ名（見つからない場合はnull）"
+  "category": "カテゴリ名（見つからない場合はnull）",
+  "items": [
+    {"name": "商品名1", "amount": 金額（数値）},
+    {"name": "商品名2", "amount": 金額（数値）}
+  ]
 }
 
 重要：
 - カテゴリは必ず上記のリストから選択してください
+- itemsはレシートに記載されている購入商品を全て抽出してください（商品名と単価、または小計）
+- 商品が1件もない場合は items: []
 - 日付が見つからない場合はnullを返してください
+- 時刻はレシートに印字されている場合のみ抽出（ない場合はnull）
 - 金額が見つからない場合はnullを返してください
 - 店舗名が見つからない場合はnullを返してください
 - JSON形式のみを返答してください（説明は不要）`

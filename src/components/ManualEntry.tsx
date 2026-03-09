@@ -2,21 +2,40 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { Category, Asset } from '../types'
+import { Category, Asset, Transaction } from '../types'
 import { parseReceiptImage, compressImage } from '../lib/geminiVision'
 
 interface ManualEntryProps {
   onClose: () => void
   onSave: () => void
+  onSaveSuccess?: (transaction: Transaction) => void
 }
 
-export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
+/** 日付と時刻をDB形式（yyyy/MM/dd HH:mm:ss）に変換 */
+function formatDateTimeForDb(dateStr: string, timeStr: string): string {
+  const dateMatch = dateStr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+  if (!dateMatch) return dateStr
+  const [, year, month, day] = dateMatch
+  const normalizedDate = `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`
+  // 時刻形式を正規化（HH:mm または HH:mm:ss）
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
+  const h = timeMatch ? timeMatch[1].padStart(2, '0') : '12'
+  const m = timeMatch ? timeMatch[2].padStart(2, '0') : '00'
+  const s = timeMatch?.[3]?.padStart(2, '0') ?? '00'
+  return `${normalizedDate} ${h}:${m}:${s}`
+}
+
+export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps) {
   const [date, setDate] = useState(() => {
     const today = new Date()
     const year = today.getFullYear()
     const month = String(today.getMonth() + 1).padStart(2, '0')
     const day = String(today.getDate()).padStart(2, '0')
     return `${year}/${month}/${day}`
+  })
+  const [time, setTime] = useState(() => {
+    const now = new Date()
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`
   })
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState<string>('')
@@ -51,6 +70,8 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
   })
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
   const [hasAutoSaved, setHasAutoSaved] = useState(false)
+  // レシート解析からの自動入力時は自動保存をスキップ（ユーザーが内容を確認できるようにする）
+  const [lastFillFromReceiptParse, setLastFillFromReceiptParse] = useState(false)
 
   useEffect(() => {
     loadCategories()
@@ -81,9 +102,9 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     })
   }, [date, amount, merchant, asset])
 
-  // 自動保存の処理
+  // 自動保存の処理（レシート解析からの自動入力時はスキップし、ユーザーが内容を確認してから保存できるようにする）
   useEffect(() => {
-    if (!autoSaveEnabled || hasAutoSaved) return
+    if (!autoSaveEnabled || hasAutoSaved || lastFillFromReceiptParse) return
 
     const hasDate = !!date && date.match(/\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2}/)
     const hasAmount = !!amount && !isNaN(parseFloat(amount.replace(/,/g, ''))) && parseFloat(amount.replace(/,/g, '')) > 0
@@ -96,21 +117,14 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
         setHasAutoSaved(true)
         // handleSaveを直接呼び出さず、必要な処理を実行
         const amountNum = parseFloat(amount.replace(/,/g, ''))
-        let formattedDate = date
-        const dateMatch = date.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
-        if (dateMatch) {
-          const year = dateMatch[1]
-          const month = dateMatch[2].padStart(2, '0')
-          const day = dateMatch[3].padStart(2, '0')
-          formattedDate = `${year}/${month}/${day}`
-        }
+        const formattedDateTime = formatDateTimeForDb(date, time)
         const transactionNumber = `MANUAL_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
         try {
           const { error } = await supabase
             .from('transactions')
             .insert({
-              transaction_date: formattedDate,
+              transaction_date: formattedDateTime,
               withdrawal_amount: amountNum,
               deposit_amount: null,
               foreign_withdrawal_amount: null,
@@ -143,7 +157,7 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
       return () => clearTimeout(timer)
     }
-  }, [date, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, category, memo, receiptDetails, onSave, onClose])
+  }, [date, time, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, lastFillFromReceiptParse, category, memo, receiptDetails, onSave, onClose])
 
   // カメラストリームをビデオ要素に設定（startCamera内で直接管理するため、このuseEffectは最小限）
   useEffect(() => {
@@ -276,6 +290,10 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
             // 解析結果をフォームに反映
             if (result.date) setDate(result.date)
+            if (result.time) {
+              const t = result.time.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
+              setTime(t ? `${t[1].padStart(2, '0')}:${t[2].padStart(2, '0')}:${(t[3] ?? '00').padStart(2, '0')}` : '12:00:00')
+            }
             if (result.amount) setAmount(String(result.amount))
             if (result.merchant) setMerchant(result.merchant)
             if (result.category) setCategory(result.category)
@@ -285,6 +303,10 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
             } else {
               setReceiptDetails(null)
             }
+            // レシート解析からの自動入力のため、自動保存をスキップ（ユーザーが内容を確認できるようにする）
+            setLastFillFromReceiptParse(true)
+            // カメラを閉じてフォームを表示し、ユーザーが内容を確認できるようにする
+            stopCamera()
           } catch (error) {
             console.error('Error analyzing receipt:', error)
             alert('レシートの解析に失敗しました。再度撮影してください。')
@@ -321,6 +343,10 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
 
       // 解析結果をフォームに反映
       if (result.date) setDate(result.date)
+      if (result.time) {
+        const t = result.time.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
+        setTime(t ? `${t[1].padStart(2, '0')}:${t[2].padStart(2, '0')}:${(t[3] ?? '00').padStart(2, '0')}` : '12:00:00')
+      }
       if (result.amount) setAmount(String(result.amount))
       if (result.merchant) setMerchant(result.merchant)
       if (result.category) setCategory(result.category)
@@ -330,6 +356,8 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
       } else {
         setReceiptDetails(null)
       }
+      // レシート解析からの自動入力のため、自動保存をスキップ（ユーザーが内容を確認できるようにする）
+      setLastFillFromReceiptParse(true)
     } catch (error) {
       console.error('Error analyzing receipt:', error)
       alert('レシートの解析に失敗しました。手動で入力してください。')
@@ -357,23 +385,15 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
     }
 
     try {
-      // 日付の形式を統一（YYYY/MM/DD形式に変換）
-      let formattedDate = date
-      const dateMatch = date.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
-      if (dateMatch) {
-        const year = dateMatch[1]
-        const month = dateMatch[2].padStart(2, '0')
-        const day = dateMatch[3].padStart(2, '0')
-        formattedDate = `${year}/${month}/${day}`
-      }
+      const formattedDateTime = formatDateTimeForDb(date, time)
 
       // 取引番号を自動生成（UUIDベース）
       const transactionNumber = `MANUAL_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 
-      const { error } = await supabase
+      const { data: insertedData, error } = await supabase
         .from('transactions')
         .insert({
-          transaction_date: formattedDate,
+          transaction_date: formattedDateTime,
           withdrawal_amount: amountNum,
           deposit_amount: null,
           foreign_withdrawal_amount: null,
@@ -393,23 +413,27 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           receipt_image: receiptImage,
           details: receiptDetails,
         })
+        .select('*')
+        .single()
 
-      if (error) throw error
-
-      if (!hasAutoSaved) {
-        alert('取引を保存しました')
+      if (error) {
+        console.error('[ManualEntry] 保存エラー:', error)
+        throw error
       }
+
       setHasAutoSaved(false) // リセット
       onSave()
+      onSaveSuccess?.(insertedData as Transaction)
       onClose()
     } catch (error) {
-      console.error('Error saving transaction:', error)
+      console.error('[ManualEntry] Error saving transaction:', error)
       setHasAutoSaved(false) // エラー時もリセット
       if (!hasAutoSaved) {
-        alert('取引の保存に失敗しました')
+        const errMsg = error instanceof Error ? error.message : String(error)
+        alert(`取引の保存に失敗しました\n${errMsg}`)
       }
     }
-  }, [date, amount, merchant, asset, category, memo, receiptImage, receiptDetails, hasAutoSaved, onSave, onClose])
+  }, [date, time, amount, merchant, asset, category, memo, receiptImage, receiptDetails, hasAutoSaved, onSave, onSaveSuccess, onClose])
 
   return (
     <>
@@ -832,29 +856,56 @@ export function ManualEntry({ onClose, onSave }: ManualEntryProps) {
           )}
         </div>
 
-        {/* 日付 */}
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontWeight: 'bold',
-          }}>
-            日付 <span style={{ color: 'red' }}>*</span>
-          </label>
-          <input
-            type="text"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            placeholder="YYYY/MM/DD"
-            required
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              fontSize: '14px',
-            }}
-          />
+        {/* 日付・時刻 */}
+        <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 'bold',
+            }}>
+              日付 <span style={{ color: 'red' }}>*</span>
+            </label>
+            <input
+              type="text"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              placeholder="YYYY/MM/DD"
+              required
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+            />
+          </div>
+          <div style={{ flex: '1 1 120px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '0.5rem',
+              fontWeight: 'bold',
+            }}>
+              時刻
+            </label>
+            <input
+              type="time"
+              value={time.slice(0, 5)}
+              onChange={(e) => {
+                const v = e.target.value
+                setTime(v ? `${v}:00` : '12:00:00')
+              }}
+              step="60"
+              style={{
+                width: '100%',
+                padding: '0.5rem',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+              }}
+            />
+          </div>
         </div>
 
         {/* 金額 */}

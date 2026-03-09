@@ -1,14 +1,53 @@
-import { X, Receipt, Calendar, Store, CreditCard, Tag, User, Hash } from 'lucide-react'
+import { useState } from 'react'
+import { X, Receipt, Calendar, Store, CreditCard, Tag, User, Hash, Trash2 } from 'lucide-react'
 import { Transaction } from '../types'
 import { formatTransactionDate } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
+import { supabase } from '../lib/supabase'
 
 interface TransactionDetailProps {
   transaction: Transaction
   onClose: () => void
+  onDeleteSuccess?: () => void
 }
 
-export function TransactionDetail({ transaction, onClose }: TransactionDetailProps) {
+export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: TransactionDetailProps) {
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!confirm('この取引を完全に削除しますか？\nこの操作は取り消せません。')) return
+
+    setIsDeleting(true)
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .delete()
+        .eq('id', transaction.id)
+        .select('id')
+
+      if (error) {
+        console.error('[TransactionDetail] 削除エラー:', error)
+        alert(`削除に失敗しました\n${error.message}`)
+        return
+      }
+
+      // 実際に削除されたか確認（RLSでブロックされるとdataが空になる）
+      if (!data || data.length === 0) {
+        console.error('[TransactionDetail] 削除が実行されませんでした（RLSポリシーの可能性）')
+        alert('削除に失敗しました。SupabaseのRLSポリシーでDELETEが許可されているか確認してください。')
+        return
+      }
+
+      onDeleteSuccess?.()
+      onClose()
+    } catch (error) {
+      console.error('[TransactionDetail] Error deleting transaction:', error)
+      const errMsg = error instanceof Error ? error.message : String(error)
+      alert(`削除に失敗しました\n${errMsg}`)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
   const details = transaction.details as { items: Array<{ name: string; amount: number }> } | null
 
   return (
@@ -130,68 +169,6 @@ export function TransactionDetail({ transaction, onClose }: TransactionDetailPro
           </div>
         </div>
 
-        {/* 明細の詳細（レシートから抽出された商品リスト） */}
-        {details && details.items && details.items.length > 0 && (
-          <div style={{
-            marginBottom: '1rem',
-          }}>
-            <h3 style={{
-              fontSize: '16px',
-              fontWeight: 'bold',
-              marginBottom: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-            }}>
-              <Receipt size={18} color="#666" />
-              購入明細
-            </h3>
-            <div style={{
-              backgroundColor: 'white',
-              borderRadius: '8px',
-              border: '1px solid #e0e0e0',
-              overflow: 'hidden',
-            }}>
-              {details.items.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '1rem',
-                    borderBottom: idx < details.items.length - 1 ? '1px solid #f0f0f0' : 'none',
-                  }}
-                >
-                  <span style={{ flex: 1, fontSize: '14px' }}>{item.name}</span>
-                  <span style={{
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    marginLeft: '1rem',
-                    color: '#333',
-                  }}>
-                    ¥{item.amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1rem',
-                backgroundColor: '#f9f9f9',
-                borderTop: '2px solid #e0e0e0',
-                fontWeight: 'bold',
-              }}>
-                <span>合計</span>
-                <span style={{ fontSize: '18px' }}>
-                  ¥{details.items.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* メモ */}
         {transaction.memo && (
           <div style={{
@@ -247,7 +224,38 @@ export function TransactionDetail({ transaction, onClose }: TransactionDetailPro
           )}
         </div>
 
-        {/* レシート画像（下部に表示） */}
+        {/* 削除ボタン */}
+        <div style={{
+          marginTop: '1.5rem',
+          paddingTop: '1rem',
+          borderTop: '1px solid #e0e0e0',
+        }}>
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            style={{
+              width: '100%',
+              padding: '0.75rem',
+              border: '1px solid #e74c3c',
+              borderRadius: '8px',
+              backgroundColor: 'white',
+              color: '#e74c3c',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: isDeleting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              opacity: isDeleting ? 0.6 : 1,
+            }}
+          >
+            <Trash2 size={18} />
+            {isDeleting ? '削除中...' : 'この取引を削除'}
+          </button>
+        </div>
+
+        {/* レシート画像 */}
         {transaction.receipt_image && (
           <div style={{
             marginTop: '1.5rem',
@@ -280,6 +288,54 @@ export function TransactionDetail({ transaction, onClose }: TransactionDetailPro
                   borderRadius: '4px',
                 }}
               />
+            </div>
+          </div>
+        )}
+
+        {/* 購入明細（レシート画像の下に表示） */}
+        {details && details.items && details.items.length > 0 && (
+          <div style={{
+            marginBottom: '1rem',
+          }}>
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              marginBottom: '0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}>
+              <Receipt size={18} color="#666" />
+              購入明細
+            </h3>
+            <div style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              border: '1px solid #e0e0e0',
+              overflow: 'hidden',
+            }}>
+              {details.items.map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '1rem',
+                    borderBottom: idx < details.items.length - 1 ? '1px solid #f0f0f0' : 'none',
+                  }}
+                >
+                  <span style={{ flex: 1, fontSize: '14px' }}>{item.name}</span>
+                  <span style={{
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    marginLeft: '1rem',
+                    color: '#333',
+                  }}>
+                    ¥{item.amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}

@@ -174,8 +174,14 @@ function App() {
 
       if (error) throw error
 
+      // デバッグ: 取得件数と手動入力の有無を確認
+      const manualEntries = (data || []).filter(tx => tx.payment_method === '手動入力')
+      console.log('[loadTransactions] 1回目取得件数:', (data || []).length, '手動入力:', manualEntries.length, manualEntries)
+
       // 既存データの非表示フラグを更新（必要に応じて）
+      // 手動入力はユーザーが明示的に追加した取引のため、自動非表示の対象外とする
       const transactionsToUpdate = (data || []).filter(tx => {
+        if (tx.payment_method === '手動入力') return false
         const shouldBeHidden = hiddenPaymentMethods.has(tx.payment_method) ||
                                hiddenTransactionTypes.has(tx.transaction_type) ||
                                // 銀行からのチャージを非表示
@@ -202,6 +208,11 @@ function App() {
         .order('transaction_date', { ascending: false })
 
       if (updateError) throw updateError
+
+      // デバッグ: 表示用データの取得結果を確認
+      const manualInDisplay = (updatedData || []).filter(tx => tx.payment_method === '手動入力')
+      console.log('[loadTransactions] 表示用取得件数:', (updatedData || []).length, '手動入力:', manualInDisplay.length, updatedData?.slice(0, 3))
+
       setTransactions(updatedData || [])
     } catch (error) {
       console.error('Error loading transactions:', error)
@@ -556,6 +567,7 @@ function App() {
         <ManualEntry
           onClose={() => setShowManualEntry(false)}
           onSave={loadTransactions}
+          onSaveSuccess={(tx) => setSelectedTransaction(tx)}
         />
       )}
 
@@ -563,6 +575,7 @@ function App() {
         <TransactionDetail
           transaction={selectedTransaction}
           onClose={() => setSelectedTransaction(null)}
+          onDeleteSuccess={loadTransactions}
         />
       )}
 
