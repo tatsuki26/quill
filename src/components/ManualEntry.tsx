@@ -287,29 +287,53 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
 
   const startCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      })
+      let mediaStream: MediaStream
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+        })
+      } catch {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true })
+      }
       
       setStream(mediaStream)
       setIsCameraMode(true)
-
-      // DOMにビデオ要素が追加されるのを待ってからsrcObjectを設定
-      const attachStream = (attempts = 0) => {
-        const video = document.getElementById('camera-video') as HTMLVideoElement | null
-        if (video) {
-          video.srcObject = mediaStream
-          video.play().catch(() => {})
-        } else if (attempts < 30) {
-          setTimeout(() => attachStream(attempts + 1), 50)
-        }
-      }
-      setTimeout(attachStream, 0)
     } catch (error) {
       console.error('Error accessing camera:', error)
       alert('カメラへのアクセスに失敗しました。ファイルアップロードを使用してください。')
     }
   }
+
+  // ストリームをビデオ要素にアタッチ（モバイル対応: useEffectでレンダリング後に確実に実行）
+  useEffect(() => {
+    if (!stream || !isCameraMode) return
+
+    const attachStream = (attempts = 0) => {
+      const video = videoRef.current || (document.getElementById('camera-video') as HTMLVideoElement | null)
+      if (video) {
+        video.srcObject = stream
+        video.muted = true
+        video.setAttribute('playsinline', 'true')
+        video.setAttribute('webkit-playsinline', 'true')
+        video.playsInline = true
+
+        const playVideo = () => {
+          video.play().catch(err => console.warn('Video play:', err))
+        }
+
+        if (video.readyState >= 1) {
+          playVideo()
+        } else {
+          video.onloadedmetadata = () => setTimeout(playVideo, 100)
+        }
+      } else if (attempts < 60) {
+        setTimeout(() => attachStream(attempts + 1), 100)
+      }
+    }
+    const timer = setTimeout(attachStream, 100)
+
+    return () => clearTimeout(timer)
+  }, [stream, isCameraMode])
 
   const stopCamera = () => {
     const video = document.getElementById('camera-video') as HTMLVideoElement | null
@@ -516,7 +540,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
             zIndex: 2000,
           }}
         >
-          {/* ビデオプレビュー - position:fixedで親から独立してビューポート全体を占有 */}
+          {/* ビデオプレビュー - モバイル対応（playsInline, transformでハードウェアアクセラレーション） */}
           <video
             ref={videoRef}
             id="camera-video"
@@ -532,6 +556,8 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
               objectFit: 'cover',
               backgroundColor: '#000',
               zIndex: 2001,
+              transform: 'translate3d(0, 0, 0)',
+              WebkitTransform: 'translate3d(0, 0, 0)',
             }}
           />
           
