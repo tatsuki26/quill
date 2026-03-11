@@ -76,26 +76,50 @@ export function CategoryManagement({ onClose: _onClose }: CategoryManagementProp
     }
 
     try {
-      const { error } = await supabase
+      const originalCategory = categories.find(c => c.id === editingId)
+      const originalName = originalCategory?.name
+
+      const { data, error } = await supabase
         .from('categories')
         .update({
           name: editingName.trim(),
           color_bg: editingColorBg,
           color_text: editingColorText,
-          updated_at: new Date().toISOString(),
         })
         .eq('id', editingId)
+        .select()
 
       if (error) throw error
+
+      if (!data || data.length === 0) {
+        throw new Error('更新が反映されませんでした。SupabaseのRLSポリシーでcategoriesテーブルのUPDATEが許可されているか確認してください。')
+      }
+
+      if (originalName && originalName !== editingName.trim()) {
+        const { error: txError } = await supabase
+          .from('transactions')
+          .update({ category: editingName.trim() })
+          .eq('category', originalName)
+
+        if (txError) console.error('Error updating transactions category:', txError)
+
+        const { error: mappingError } = await supabase
+          .from('category_mappings')
+          .update({ category: editingName.trim() })
+          .eq('category', originalName)
+
+        if (mappingError) console.error('Error updating category_mappings:', mappingError)
+      }
 
       await loadCategories()
       setEditingId(null)
       setEditingName('')
       setEditingColorBg('#f0f0f0')
       setEditingColorText('#666666')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating category:', error)
-      alert('カテゴリの更新に失敗しました')
+      const errorMessage = error?.message || error?.details || '不明なエラー'
+      alert(`カテゴリの更新に失敗しました\n\n${errorMessage}`)
     }
   }
 
