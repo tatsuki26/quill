@@ -65,13 +65,10 @@ export interface User {
   created_at: string
 }
 
+/** 取引一覧の検索条件（日付は input type="date" の yyyy-MM-dd） */
 export type FilterType = {
   dateFrom?: string
   dateTo?: string
-  amountMin?: number
-  amountMax?: number
-  paymentMethod?: string
-  transactionType?: string
   category?: string
   searchText?: string
 }

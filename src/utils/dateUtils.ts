@@ -1,4 +1,4 @@
-import { format, parse, startOfMonth, endOfMonth } from 'date-fns'
+import { format, parse, startOfMonth, endOfMonth, startOfDay, endOfDay, isBefore, isAfter, parseISO } from 'date-fns'
 import { ja } from 'date-fns/locale/ja'
 
 const DATE_FORMATS = ['yyyy/MM/dd HH:mm:ss', 'yyyy/MM/dd', 'yyyy-MM-dd HH:mm:ss', 'yyyy-MM-dd'] as const
@@ -60,6 +60,31 @@ export function getMonthRange(dateString: string): { start: string; end: string 
 export function parseDate(dateString: string): Date {
   const date = parseTransactionDate(dateString)
   return date ?? new Date()
+}
+
+/**
+ * 取引の日時が検索用の日付範囲に含まれるか（DBの yyyy/MM/dd と input の yyyy-MM-dd の混在でも正しく比較）
+ * dateFrom / dateTo は HTML date の yyyy-MM-dd。未指定の側は制限なし。
+ */
+export function transactionMatchesDateFilter(
+  transactionDateStr: string,
+  dateFrom?: string,
+  dateTo?: string
+): boolean {
+  if (!dateFrom && !dateTo) return true
+
+  const txInstant = parseTransactionDate(transactionDateStr)
+  if (!txInstant) return false
+
+  if (dateFrom) {
+    const fromStart = startOfDay(parseISO(dateFrom))
+    if (isBefore(txInstant, fromStart)) return false
+  }
+  if (dateTo) {
+    const toEnd = endOfDay(parseISO(dateTo))
+    if (isAfter(txInstant, toEnd)) return false
+  }
+  return true
 }
 
 /**

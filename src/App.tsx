@@ -17,6 +17,7 @@ import { ManualEntry } from './components/ManualEntry'
 import { SettingsPage } from './components/SettingsPage'
 import { TransactionDetail } from './components/TransactionDetail'
 import { Dashboard } from './components/Dashboard'
+import { transactionMatchesDateFilter } from './utils/dateUtils'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
@@ -280,51 +281,32 @@ function App() {
     // 非表示データは全員（管理者含む）に表示しない
     filtered = filtered.filter(tx => !tx.is_hidden)
 
-    // フィルター適用
-    if (filters.dateFrom) {
-      filtered = filtered.filter(tx => tx.transaction_date >= filters.dateFrom!)
-    }
-    if (filters.dateTo) {
-      filtered = filtered.filter(tx => tx.transaction_date <= filters.dateTo!)
-    }
-    if (filters.amountMin !== undefined) {
-      filtered = filtered.filter(tx =>
-        (tx.withdrawal_amount && tx.withdrawal_amount >= filters.amountMin!) ||
-        (tx.deposit_amount && tx.deposit_amount >= filters.amountMin!)
-      )
-    }
-    if (filters.amountMax !== undefined) {
-      filtered = filtered.filter(tx =>
-        (tx.withdrawal_amount && tx.withdrawal_amount <= filters.amountMax!) ||
-        (tx.deposit_amount && tx.deposit_amount <= filters.amountMax!)
-      )
-    }
-    if (filters.paymentMethod) {
-      filtered = filtered.filter(tx => tx.payment_method.includes(filters.paymentMethod!))
-    }
-    if (filters.transactionType) {
-      filtered = filtered.filter(tx => tx.transaction_type === filters.transactionType)
-    }
+    filtered = filtered.filter(tx =>
+      transactionMatchesDateFilter(tx.transaction_date, filters.dateFrom, filters.dateTo)
+    )
+
     if (filters.category) {
       filtered = filtered.filter(tx => tx.category === filters.category)
     }
-    if (filters.searchText) {
-      const searchLower = filters.searchText.toLowerCase()
-      filtered = filtered.filter(tx =>
-        tx.merchant.toLowerCase().includes(searchLower) ||
-        tx.transaction_type.toLowerCase().includes(searchLower)
-      )
+
+    const q = filters.searchText?.trim().toLowerCase()
+    if (q) {
+      filtered = filtered.filter(tx => {
+        if (
+          tx.merchant.toLowerCase().includes(q) ||
+          tx.transaction_type.toLowerCase().includes(q) ||
+          tx.payment_method.toLowerCase().includes(q)
+        ) {
+          return true
+        }
+        if (tx.memo && tx.memo.toLowerCase().includes(q)) return true
+        const items = tx.details?.items
+        return !!items?.some(it => it.name.toLowerCase().includes(q))
+      })
     }
 
     setFilteredTransactions(filtered)
   }
-
-
-  const paymentMethods = Array.from(new Set(transactions.map(tx => tx.payment_method)))
-  const transactionTypes = Array.from(new Set(transactions.map(tx => tx.transaction_type)))
-  const categories = Array.from(
-    new Set(transactions.map(tx => tx.category).filter(Boolean) as string[])
-  )
 
   if (!user) {
     return <Login />
@@ -538,7 +520,6 @@ function App() {
         <>
           <FilterBar
             filters={filters}
-            onFilterChange={setFilters}
             onToggleFilterPanel={() => setShowFilterPanel(true)}
           />
 
@@ -564,9 +545,6 @@ function App() {
               filters={filters}
               onFilterChange={setFilters}
               onClose={() => setShowFilterPanel(false)}
-              paymentMethods={paymentMethods}
-              transactionTypes={transactionTypes}
-              categories={categories}
             />
           )}
         </>

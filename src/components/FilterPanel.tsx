@@ -1,52 +1,80 @@
+import { useState, useEffect } from 'react'
 import { FilterType } from '../types'
 import { X } from 'lucide-react'
+import { supabase } from '../lib/supabase'
 
 interface FilterPanelProps {
   filters: FilterType
   onFilterChange: (filters: FilterType) => void
   onClose: () => void
-  paymentMethods: string[]
-  transactionTypes: string[]
-  categories: string[]
 }
 
 export function FilterPanel({
   filters,
   onFilterChange,
   onClose,
-  paymentMethods,
-  transactionTypes,
-  categories,
 }: FilterPanelProps) {
+  const [categoryNames, setCategoryNames] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('categories')
+          .select('name')
+          .order('display_order', { ascending: true })
+        if (error) throw error
+        if (!cancelled) {
+          setCategoryNames((data || []).map(r => r.name))
+        }
+      } catch (e) {
+        console.error('FilterPanel: categories load failed', e)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      zIndex: 1000,
-      display: 'flex',
-      alignItems: 'flex-end',
-    }}>
-      <div style={{
-        backgroundColor: 'white',
-        width: '100%',
-        maxHeight: '80vh',
-        borderTopLeftRadius: '20px',
-        borderTopRightRadius: '20px',
-        padding: '1.5rem',
-        overflowY: 'auto',
-      }}>
+    <div
+      role="dialog"
+      aria-label="取引を検索"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        zIndex: 1000,
+        display: 'flex',
+        alignItems: 'flex-end',
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          backgroundColor: 'white',
+          width: '100%',
+          maxHeight: '85vh',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px',
+          padding: '1.5rem',
+          overflowY: 'auto',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '1.5rem',
         }}>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>フィルター</h2>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>検索</h2>
           <button
+            type="button"
             onClick={onClose}
             style={{
               border: 'none',
@@ -59,33 +87,42 @@ export function FilterPanel({
           </button>
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.25rem' }}>
           <label style={{
             display: 'block',
             marginBottom: '0.5rem',
             fontSize: '14px',
             fontWeight: 'bold',
           }}>
-            日付範囲
+            日付
           </label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <p style={{
+            margin: '0 0 0.5rem',
+            fontSize: '12px',
+            color: '#666',
+            lineHeight: 1.5,
+          }}>
+            開始・終了に同じ日を指定すると、その1日分だけに絞り込めます。片方だけ指定した場合は、その日以降（または以前）になります。
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <input
               type="date"
               value={filters.dateFrom || ''}
-              onChange={(e) => onFilterChange({ ...filters, dateFrom: e.target.value })}
+              onChange={(e) => onFilterChange({ ...filters, dateFrom: e.target.value || undefined })}
               style={{
-                flex: 1,
+                flex: '1 1 140px',
                 padding: '0.5rem',
                 border: '1px solid #ddd',
                 borderRadius: '8px',
               }}
             />
+            <span style={{ color: '#999', fontSize: '14px' }}>〜</span>
             <input
               type="date"
               value={filters.dateTo || ''}
-              onChange={(e) => onFilterChange({ ...filters, dateTo: e.target.value })}
+              onChange={(e) => onFilterChange({ ...filters, dateTo: e.target.value || undefined })}
               style={{
-                flex: 1,
+                flex: '1 1 140px',
                 padding: '0.5rem',
                 border: '1px solid #ddd',
                 borderRadius: '8px',
@@ -94,112 +131,7 @@ export function FilterPanel({
           </div>
         </div>
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontSize: '14px',
-            fontWeight: 'bold',
-          }}>
-            金額範囲
-          </label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="number"
-              placeholder="最小"
-              value={filters.amountMin || ''}
-              onChange={(e) => onFilterChange({
-                ...filters,
-                amountMin: e.target.value ? parseFloat(e.target.value) : undefined,
-              })}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-              }}
-            />
-            <input
-              type="number"
-              placeholder="最大"
-              value={filters.amountMax || ''}
-              onChange={(e) => onFilterChange({
-                ...filters,
-                amountMax: e.target.value ? parseFloat(e.target.value) : undefined,
-              })}
-              style={{
-                flex: 1,
-                padding: '0.5rem',
-                border: '1px solid #ddd',
-                borderRadius: '8px',
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontSize: '14px',
-            fontWeight: 'bold',
-          }}>
-            取引方法
-          </label>
-          <select
-            value={filters.paymentMethod || ''}
-            onChange={(e) => onFilterChange({
-              ...filters,
-              paymentMethod: e.target.value || undefined,
-            })}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-            }}
-          >
-            <option value="">すべて</option>
-            {paymentMethods.map((method) => (
-              <option key={method} value={method}>
-                {method}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{
-            display: 'block',
-            marginBottom: '0.5rem',
-            fontSize: '14px',
-            fontWeight: 'bold',
-          }}>
-            取引内容
-          </label>
-          <select
-            value={filters.transactionType || ''}
-            onChange={(e) => onFilterChange({
-              ...filters,
-              transactionType: e.target.value || undefined,
-            })}
-            style={{
-              width: '100%',
-              padding: '0.5rem',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-            }}
-          >
-            <option value="">すべて</option>
-            {transactionTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ marginBottom: '1.25rem' }}>
           <label style={{
             display: 'block',
             marginBottom: '0.5rem',
@@ -219,10 +151,11 @@ export function FilterPanel({
               padding: '0.5rem',
               border: '1px solid #ddd',
               borderRadius: '8px',
+              fontSize: '15px',
             }}
           >
             <option value="">すべて</option>
-            {categories.map((cat) => (
+            {categoryNames.map((cat) => (
               <option key={cat} value={cat}>
                 {cat}
               </option>
@@ -237,11 +170,20 @@ export function FilterPanel({
             fontSize: '14px',
             fontWeight: 'bold',
           }}>
-            検索（取引先名）
+            キーワード（部分一致）
           </label>
+          <p style={{
+            margin: '0 0 0.5rem',
+            fontSize: '12px',
+            color: '#666',
+            lineHeight: 1.5,
+          }}>
+            取引先（店名）・取引種別・支払い方法・メモ・購入明細の品目名のいずれかに含まれる取引を表示します。
+          </p>
           <input
-            type="text"
-            placeholder="店舗名で検索"
+            type="search"
+            enterKeyHint="search"
+            placeholder="例: コンビニ、スーパー、コーヒー"
             value={filters.searchText || ''}
             onChange={(e) => onFilterChange({
               ...filters,
@@ -252,12 +194,14 @@ export function FilterPanel({
               padding: '0.5rem',
               border: '1px solid #ddd',
               borderRadius: '8px',
+              fontSize: '15px',
             }}
           />
         </div>
 
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
+            type="button"
             onClick={() => onFilterChange({})}
             style={{
               flex: 1,
@@ -268,9 +212,10 @@ export function FilterPanel({
               cursor: 'pointer',
             }}
           >
-            リセット
+            条件をクリア
           </button>
           <button
+            type="button"
             onClick={onClose}
             style={{
               flex: 1,
@@ -283,7 +228,7 @@ export function FilterPanel({
               fontWeight: 'bold',
             }}
           >
-            適用
+            閉じる
           </button>
         </div>
       </div>
