@@ -34,8 +34,12 @@ interface TransactionListProps {
   onShowDetail?: (transaction: Transaction) => void
 }
 
-export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory, onShowDetail }: TransactionListProps) {
-
+export function TransactionList({
+  transactions,
+  onUpdateMemo,
+  onUpdateCategory,
+  onShowDetail,
+}: TransactionListProps) {
   const groupedTransactions = useMemo(() => {
     const groups: Record<string, Transaction[]> = {}
     
@@ -205,16 +209,27 @@ export function TransactionList({ transactions, onUpdateMemo, onUpdateCategory, 
                     </span>
                     {getStatusBadge(tx)}
                   </div>
-                  
-                  <CategoryField
-                    transaction={tx}
-                    onUpdateCategory={onUpdateCategory}
-                  />
-                  
-                  <MemoField
-                    transaction={tx}
-                    onUpdateMemo={onUpdateMemo}
-                  />
+
+                  <div
+                    role="presentation"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    style={{ marginTop: '4px' }}
+                  >
+                    <CategoryField
+                      transaction={tx}
+                      onUpdateCategory={onUpdateCategory}
+                    />
+                  </div>
+
+                  <div
+                    role="presentation"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    style={{ marginTop: '8px' }}
+                  >
+                    <MemoField transaction={tx} onUpdateMemo={onUpdateMemo} />
+                  </div>
                 </div>
                 
                 <div style={{
@@ -262,10 +277,14 @@ interface MemoFieldProps {
   onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
 }
 
-function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
+export function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [memo, setMemo] = useState(transaction.memo || '')
   const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    setMemo(transaction.memo || '')
+  }, [transaction.id, transaction.memo])
 
   const handleSave = async () => {
     if (!onUpdateMemo) return
@@ -304,6 +323,8 @@ function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
               setMemo(value)
             }
           }}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           placeholder="詳細を入力（50文字以内）"
           maxLength={50}
           style={{
@@ -316,7 +337,11 @@ function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
           autoFocus
         />
         <button
-          onClick={handleSave}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            void handleSave()
+          }}
           disabled={isSaving}
           style={{
             padding: '6px 10px',
@@ -334,7 +359,11 @@ function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
           <Check size={14} />
         </button>
         <button
-          onClick={handleCancel}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleCancel()
+          }}
           disabled={isSaving}
           style={{
             padding: '6px 10px',
@@ -390,7 +419,11 @@ function MemoField({ transaction, onUpdateMemo }: MemoFieldProps) {
       )}
       {onUpdateMemo && (
         <button
-          onClick={() => setIsEditing(true)}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setIsEditing(true)
+          }}
           style={{
             padding: '4px 8px',
             border: 'none',
@@ -417,12 +450,16 @@ interface CategoryFieldProps {
   onUpdateCategory?: (id: string, merchant: string, category: string) => Promise<void>
 }
 
-function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
+export function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [category, setCategory] = useState(transaction.category || 'その他')
   const [isSaving, setIsSaving] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [categoryNames, setCategoryNames] = useState<string[]>([])
+
+  useEffect(() => {
+    setCategory(transaction.category || 'その他')
+  }, [transaction.id, transaction.category])
 
   useEffect(() => {
     loadCategories()
@@ -486,6 +523,8 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           style={{
             flex: 1,
             padding: '6px 10px',
@@ -499,7 +538,11 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
           ))}
         </select>
         <button
-          onClick={handleSave}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            void handleSave()
+          }}
           disabled={isSaving}
           style={{
             padding: '6px 10px',
@@ -517,7 +560,11 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
           <Check size={14} />
         </button>
         <button
-          onClick={handleCancel}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleCancel()
+          }}
           disabled={isSaving}
           style={{
             padding: '6px 10px',
@@ -561,7 +608,11 @@ function CategoryField({ transaction, onUpdateCategory }: CategoryFieldProps) {
       )}
       {onUpdateCategory && (
         <button
-          onClick={() => setIsEditing(true)}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            setIsEditing(true)
+          }}
           style={{
             padding: '4px 8px',
             border: 'none',

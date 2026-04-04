@@ -61,3 +61,46 @@ export function parseDate(dateString: string): Date {
   const date = parseTransactionDate(dateString)
   return date ?? new Date()
 }
+
+/**
+ * DB保存用: 日付文字列と時刻から `yyyy/MM/dd HH:mm:ss` を組み立てる
+ */
+export function formatDateTimeForDb(dateStr: string, timeStr: string): string {
+  const dateMatch = dateStr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+  if (!dateMatch) return dateStr
+  const [, year, month, day] = dateMatch
+  const normalizedDate = `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`
+  const timeMatch = timeStr.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
+  const h = timeMatch ? timeMatch[1].padStart(2, '0') : '12'
+  const m = timeMatch ? timeMatch[2].padStart(2, '0') : '00'
+  const s = timeMatch?.[3]?.padStart(2, '0') ?? '00'
+  return `${normalizedDate} ${h}:${m}:${s}`
+}
+
+/**
+ * 取引日時文字列を日付・時刻入力用に分解する
+ */
+export function splitTransactionDateForInput(dateString: string): { date: string; time: string } {
+  const withTime = dateString.match(
+    /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/
+  )
+  if (withTime) {
+    const [, y, mo, d, h, mi, s] = withTime
+    const date = `${y}/${mo.padStart(2, '0')}/${d.padStart(2, '0')}`
+    const time = `${h.padStart(2, '0')}:${mi.padStart(2, '0')}:${(s ?? '00').padStart(2, '0')}`
+    return { date, time }
+  }
+  const dateOnly = dateString.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
+  if (dateOnly) {
+    const [, y, mo, d] = dateOnly
+    return {
+      date: `${y}/${mo.padStart(2, '0')}/${d.padStart(2, '0')}`,
+      time: '12:00:00',
+    }
+  }
+  const today = new Date()
+  const y = today.getFullYear()
+  const mo = String(today.getMonth() + 1).padStart(2, '0')
+  const d = String(today.getDate()).padStart(2, '0')
+  return { date: `${y}/${mo}/${d}`, time: '12:00:00' }
+}

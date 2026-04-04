@@ -1,18 +1,48 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Receipt, Calendar, Store, CreditCard, Tag, User, Hash, Trash2 } from 'lucide-react'
 import { Transaction } from '../types'
-import { formatTransactionDate } from '../utils/dateUtils'
+import { formatTransactionDate, formatDateTimeForDb, splitTransactionDateForInput } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
 import { supabase } from '../lib/supabase'
+import { MemoField, CategoryField } from './TransactionList'
 
 interface TransactionDetailProps {
   transaction: Transaction
   onClose: () => void
   onDeleteSuccess?: () => void
+  onUpdateMemo?: (id: string, memo: string | null) => Promise<void>
+  onUpdateCategory?: (id: string, merchant: string, category: string) => Promise<void>
+  onUpdateTransactionDate?: (id: string, transaction_date: string) => Promise<void>
+  onUpdateDetails?: (id: string, details: Transaction['details']) => Promise<void>
 }
 
-export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: TransactionDetailProps) {
+export function TransactionDetail({
+  transaction,
+  onClose,
+  onDeleteSuccess,
+  onUpdateMemo,
+  onUpdateCategory,
+  onUpdateTransactionDate,
+  onUpdateDetails,
+}: TransactionDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [dateInput, setDateInput] = useState('')
+  const [timeInput, setTimeInput] = useState('')
+  const [savingDate, setSavingDate] = useState(false)
+  const [detailRows, setDetailRows] = useState<Array<{ name: string; amount: number }>>([])
+  const [savingDetails, setSavingDetails] = useState(false)
+
+  useEffect(() => {
+    const p = splitTransactionDateForInput(transaction.transaction_date)
+    setDateInput(p.date)
+    setTimeInput(p.time)
+  }, [transaction.id, transaction.transaction_date])
+
+  useEffect(() => {
+    const d = transaction.details as { items: Array<{ name: string; amount: number }> } | null
+    const items = d?.items
+    setDetailRows(items && items.length > 0 ? items.map(i => ({ name: i.name, amount: i.amount })) : [])
+  }, [transaction.id, transaction.details])
 
   const handleDelete = async () => {
     if (!confirm('この取引を完全に削除しますか？\nこの操作は取り消せません。')) return
@@ -31,7 +61,6 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
         return
       }
 
-      // 実際に削除されたか確認（RLSでブロックされるとdataが空になる）
       if (!data || data.length === 0) {
         console.error('[TransactionDetail] 削除が実行されませんでした（RLSポリシーの可能性）')
         alert('削除に失敗しました。SupabaseのRLSポリシーでDELETEが許可されているか確認してください。')
@@ -48,7 +77,44 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
       setIsDeleting(false)
     }
   }
-  const details = transaction.details as { items: Array<{ name: string; amount: number }> } | null
+
+  const handleSaveDate = async () => {
+    if (!onUpdateTransactionDate) return
+    setSavingDate(true)
+    try {
+      const formatted = formatDateTimeForDb(dateInput, timeInput)
+      await onUpdateTransactionDate(transaction.id, formatted)
+    } catch (error) {
+      console.error('[TransactionDetail] 日時の保存エラー:', error)
+      alert('日時の保存に失敗しました')
+    } finally {
+      setSavingDate(false)
+    }
+  }
+
+  const handleSaveDetails = async () => {
+    if (!onUpdateDetails) return
+    setSavingDetails(true)
+    try {
+      const items = detailRows
+        .map(i => {
+          const raw =
+            typeof i.amount === 'number' ? i.amount : parseFloat(String(i.amount).replace(/,/g, ''))
+          return {
+            name: i.name.trim(),
+            amount: Number.isFinite(raw) ? raw : 0,
+          }
+        })
+        .filter(i => i.name.length > 0 && i.amount > 0)
+      const payload: Transaction['details'] = items.length > 0 ? { items } : null
+      await onUpdateDetails(transaction.id, payload)
+    } catch (error) {
+      console.error('[TransactionDetail] 明細の保存エラー:', error)
+      alert('購入明細の保存に失敗しました')
+    } finally {
+      setSavingDetails(false)
+    }
+  }
 
   return (
     <div style={{
@@ -119,6 +185,83 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
               : formatCurrency(0)}
           </div>
 
+          {/* 日時（編集） */}
+          <div style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            backgroundColor: 'white',
+            borderRadius: '6px',
+            border: '1px solid #e8e8e8',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.5rem',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              color: '#444',
+            }}>
+              <Calendar size={16} color="#666" />
+              取引日時
+            </div>
+            <div style={{ fontSize: '12px', color: '#888', marginBottom: '0.5rem' }}>
+              現在の表示: {formatTransactionDate(transaction.transaction_date)}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+                placeholder="YYYY/MM/DD"
+                disabled={!onUpdateTransactionDate}
+                style={{
+                  flex: '1 1 120px',
+                  minWidth: '110px',
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+              />
+              <input
+                type="time"
+                value={timeInput.slice(0, 5)}
+                onChange={(e) => {
+                  const v = e.target.value
+                  setTimeInput(v ? `${v}:00` : '12:00:00')
+                }}
+                step="60"
+                disabled={!onUpdateTransactionDate}
+                style={{
+                  padding: '0.5rem',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                }}
+              />
+              {onUpdateTransactionDate && (
+                <button
+                  type="button"
+                  onClick={handleSaveDate}
+                  disabled={savingDate}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: savingDate ? '#ccc' : '#00C300',
+                    color: 'white',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: savingDate ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingDate ? '保存中…' : '日時を保存'}
+                </button>
+              )}
+            </div>
+          </div>
+
           <div style={{
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
@@ -126,19 +269,9 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
             fontSize: '14px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Calendar size={16} color="#666" />
-              <span>{formatTransactionDate(transaction.transaction_date)}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <CreditCard size={16} color="#666" />
               <span>{transaction.payment_method}</span>
             </div>
-            {transaction.category && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Tag size={16} color="#666" />
-                <span>{transaction.category}</span>
-              </div>
-            )}
             {transaction.asset && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CreditCard size={16} color="#666" />
@@ -152,6 +285,29 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
               </div>
             )}
           </div>
+
+          {/* カテゴリ（編集） */}
+          {onUpdateCategory && (
+            <div style={{
+              marginTop: '0.75rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid #e8e8e8',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.35rem',
+                fontSize: '13px',
+                fontWeight: 'bold',
+                color: '#444',
+              }}>
+                <Tag size={16} color="#666" />
+                カテゴリ
+              </div>
+              <CategoryField transaction={transaction} onUpdateCategory={onUpdateCategory} />
+            </div>
+          )}
 
           {/* 取引番号 */}
           <div style={{
@@ -169,8 +325,8 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
           </div>
         </div>
 
-        {/* メモ */}
-        {transaction.memo && (
+        {/* メモ（編集） */}
+        {onUpdateMemo && (
           <div style={{
             marginBottom: '1rem',
             padding: '1rem',
@@ -184,14 +340,7 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
             }}>
               メモ
             </h3>
-            <p style={{
-              margin: 0,
-              fontSize: '14px',
-              color: '#333',
-              whiteSpace: 'pre-wrap',
-            }}>
-              {transaction.memo}
-            </p>
+            <MemoField transaction={transaction} onUpdateMemo={onUpdateMemo} />
           </div>
         )}
 
@@ -202,6 +351,7 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
           borderRadius: '8px',
           fontSize: '12px',
           color: '#666',
+          marginBottom: '1rem',
         }}>
           <div style={{ marginBottom: '0.25rem' }}>
             取引種別: {transaction.transaction_type}
@@ -292,8 +442,8 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
           </div>
         )}
 
-        {/* 購入明細（レシート画像の下に表示） */}
-        {details && details.items && details.items.length > 0 && (
+        {/* 購入明細（編集） */}
+        {onUpdateDetails && (
           <div style={{
             marginBottom: '1rem',
           }}>
@@ -312,30 +462,117 @@ export function TransactionDetail({ transaction, onClose, onDeleteSuccess }: Tra
               backgroundColor: 'white',
               borderRadius: '8px',
               border: '1px solid #e0e0e0',
-              overflow: 'hidden',
+              padding: '0.75rem',
             }}>
-              {details.items.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '1rem',
-                    borderBottom: idx < details.items.length - 1 ? '1px solid #f0f0f0' : 'none',
-                  }}
-                >
-                  <span style={{ flex: 1, fontSize: '14px' }}>{item.name}</span>
-                  <span style={{
-                    fontWeight: 'bold',
-                    fontSize: '16px',
-                    marginLeft: '1rem',
-                    color: '#333',
-                  }}>
-                    ¥{item.amount.toLocaleString()}
-                  </span>
-                </div>
-              ))}
+              {detailRows.length === 0 && (
+                <p style={{ margin: '0 0 0.75rem', fontSize: '13px', color: '#888' }}>
+                  行がありません。「行を追加」から入力できます。
+                </p>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {detailRows.map((row, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      gap: '0.5rem',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={row.name}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setDetailRows(prev => prev.map((r, i) => (i === idx ? { ...r, name: v } : r)))
+                      }}
+                      placeholder="品目"
+                      style={{
+                        flex: '1 1 140px',
+                        minWidth: '120px',
+                        padding: '0.5rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={Number.isFinite(row.amount) ? String(row.amount) : ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^\d.,]/g, '')
+                        const num = parseFloat(raw.replace(/,/g, ''))
+                        setDetailRows(prev =>
+                          prev.map((r, i) =>
+                            i === idx ? { ...r, amount: Number.isFinite(num) ? num : 0 } : r
+                          )
+                        )
+                      }}
+                      placeholder="金額"
+                      style={{
+                        width: '100px',
+                        padding: '0.5rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setDetailRows(prev => prev.filter((_, i) => i !== idx))}
+                      style={{
+                        padding: '0.35rem 0.6rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        backgroundColor: 'white',
+                        color: '#c00',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      削除
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailRows(prev => [...prev, { name: '', amount: 0 }])}
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.5rem 1rem',
+                  border: '1px dashed #999',
+                  borderRadius: '6px',
+                  backgroundColor: '#fafafa',
+                  color: '#555',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+              >
+                行を追加
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveDetails}
+                disabled={savingDetails}
+                style={{
+                  marginTop: '0.75rem',
+                  width: '100%',
+                  padding: '0.65rem',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: savingDetails ? '#ccc' : '#00C300',
+                  color: 'white',
+                  fontSize: '15px',
+                  fontWeight: 'bold',
+                  cursor: savingDetails ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {savingDetails ? '保存中…' : '購入明細を保存'}
+              </button>
             </div>
           </div>
         )}

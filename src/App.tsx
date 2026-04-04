@@ -92,6 +92,12 @@ function App() {
     applyFilters()
   }, [transactions, filters])
 
+  const patchSelectedTransaction = (id: string, patch: Partial<Transaction>) => {
+    setSelectedTransaction(prev =>
+      prev && prev.id === id ? { ...prev, ...patch } : prev
+    )
+  }
+
   const handleUpdateMemo = async (id: string, memo: string | null) => {
     try {
       const { error } = await supabase
@@ -108,6 +114,7 @@ function App() {
       setFilteredTransactions(prev =>
         prev.map(tx => (tx.id === id ? { ...tx, memo } : tx))
       )
+      patchSelectedTransaction(id, { memo })
     } catch (error) {
       console.error('Error updating memo:', error)
       throw error
@@ -145,8 +152,53 @@ function App() {
       setFilteredTransactions(prev =>
         prev.map(tx => (tx.id === id ? { ...tx, category } : tx))
       )
+      patchSelectedTransaction(id, { category })
     } catch (error) {
       console.error('Error updating category:', error)
+      throw error
+    }
+  }
+
+  const handleUpdateTransactionDate = async (id: string, transaction_date: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ transaction_date, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, transaction_date } : tx))
+      )
+      setFilteredTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, transaction_date } : tx))
+      )
+      patchSelectedTransaction(id, { transaction_date })
+    } catch (error) {
+      console.error('Error updating transaction_date:', error)
+      throw error
+    }
+  }
+
+  const handleUpdateDetails = async (id: string, details: Transaction['details']) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ details, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, details } : tx))
+      )
+      setFilteredTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, details } : tx))
+      )
+      patchSelectedTransaction(id, { details })
+    } catch (error) {
+      console.error('Error updating details:', error)
       throw error
     }
   }
@@ -576,6 +628,10 @@ function App() {
           transaction={selectedTransaction}
           onClose={() => setSelectedTransaction(null)}
           onDeleteSuccess={loadTransactions}
+          onUpdateMemo={handleUpdateMemo}
+          onUpdateCategory={handleUpdateCategory}
+          onUpdateTransactionDate={handleUpdateTransactionDate}
+          onUpdateDetails={handleUpdateDetails}
         />
       )}
 

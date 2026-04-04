@@ -1,29 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Camera, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { Category, Asset, Transaction } from '../types'
 import { parseReceiptImage, compressImage } from '../lib/geminiVision'
 import { analyzeFrameForReceipt, compareFrames } from '../utils/receiptDetection'
+import { formatDateTimeForDb } from '../utils/dateUtils'
 
 interface ManualEntryProps {
   onClose: () => void
   onSave: () => void
   onSaveSuccess?: (transaction: Transaction) => void
-}
-
-/** 日付と時刻をDB形式（yyyy/MM/dd HH:mm:ss）に変換 */
-function formatDateTimeForDb(dateStr: string, timeStr: string): string {
-  const dateMatch = dateStr.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/)
-  if (!dateMatch) return dateStr
-  const [, year, month, day] = dateMatch
-  const normalizedDate = `${year}/${month.padStart(2, '0')}/${day.padStart(2, '0')}`
-  // 時刻形式を正規化（HH:mm または HH:mm:ss）
-  const timeMatch = timeStr.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/)
-  const h = timeMatch ? timeMatch[1].padStart(2, '0') : '12'
-  const m = timeMatch ? timeMatch[2].padStart(2, '0') : '00'
-  const s = timeMatch?.[3]?.padStart(2, '0') ?? '00'
-  return `${normalizedDate} ${h}:${m}:${s}`
 }
 
 export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps) {
@@ -45,7 +32,10 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
   const [memo, setMemo] = useState('')
   const [receiptImage, setReceiptImage] = useState<string | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [receiptDetails, setReceiptDetails] = useState<{ items: Array<{ name: string; amount: number }> } | null>(null)
+  /** レシート解析後の購入明細ドラフト（編集用） */
+  const [purchaseLineDraft, setPurchaseLineDraft] = useState<Array<{ name: string; amount: number }> | null>(null)
+  /** 解析直後は false。ユーザーが「取引に明細を含める」で true になるまで保存時に details は送らない */
+  const [includePurchaseDetails, setIncludePurchaseDetails] = useState(false)
 
   const [categories, setCategories] = useState<Category[]>([])
   const [assets, setAssets] = useState<Asset[]>([])
@@ -79,6 +69,17 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
   const [hasAutoSaved, setHasAutoSaved] = useState(false)
   // レシート解析からの自動入力時は自動保存をスキップ（ユーザーが内容を確認できるようにする）
   const [lastFillFromReceiptParse, setLastFillFromReceiptParse] = useState(false)
+
+  const detailsForDb = useMemo(() => {
+    if (!includePurchaseDetails || !purchaseLineDraft?.length) return null
+    const items = purchaseLineDraft
+      .map(i => {
+        const raw = typeof i.amount === 'number' ? i.amount : parseFloat(String(i.amount).replace(/,/g, ''))
+        return { name: i.name.trim(), amount: Number.isFinite(raw) ? raw : 0 }
+      })
+      .filter(i => i.name.length > 0 && i.amount > 0)
+    return items.length > 0 ? { items } : null
+  }, [includePurchaseDetails, purchaseLineDraft])
 
   useEffect(() => {
     loadCategories()
@@ -149,7 +150,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
               memo: memo.trim() || null,
               asset: asset,
               receipt_image: receiptImage,
-              details: receiptDetails,
+              details: detailsForDb,
             })
 
           if (error) throw error
@@ -164,7 +165,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
 
       return () => clearTimeout(timer)
     }
-  }, [date, time, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, lastFillFromReceiptParse, category, memo, receiptDetails, onSave, onClose])
+  }, [date, time, amount, merchant, asset, receiptImage, autoSaveEnabled, hasAutoSaved, lastFillFromReceiptParse, category, memo, detailsForDb, onSave, onClose])
 
   // カメラストリームをビデオ要素に設定（startCamera内で直接管理するため、このuseEffectは最小限）
   useEffect(() => {
@@ -419,9 +420,11 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
             if (result.category) setCategory(result.category)
             // 商品詳細を保存
             if (result.items && result.items.length > 0) {
-              setReceiptDetails({ items: result.items })
+              setPurchaseLineDraft(result.items.map(it => ({ name: it.name, amount: it.amount })))
+              setIncludePurchaseDetails(false)
             } else {
-              setReceiptDetails(null)
+              setPurchaseLineDraft(null)
+              setIncludePurchaseDetails(false)
             }
             // レシート解析からの自動入力のため、自動保存をスキップ（ユーザーが内容を確認できるようにする）
             setLastFillFromReceiptParse(true)
@@ -474,9 +477,11 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
       if (result.category) setCategory(result.category)
       // 商品詳細を保存
       if (result.items && result.items.length > 0) {
-        setReceiptDetails({ items: result.items })
+        setPurchaseLineDraft(result.items.map(it => ({ name: it.name, amount: it.amount })))
+        setIncludePurchaseDetails(false)
       } else {
-        setReceiptDetails(null)
+        setPurchaseLineDraft(null)
+        setIncludePurchaseDetails(false)
       }
       // レシート解析からの自動入力のため、自動保存をスキップ（ユーザーが内容を確認できるようにする）
       setLastFillFromReceiptParse(true)
@@ -533,7 +538,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
           memo: memo.trim() || null,
           asset: asset,
           receipt_image: receiptImage,
-          details: receiptDetails,
+          details: detailsForDb,
         })
         .select('*')
         .single()
@@ -555,7 +560,7 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
         alert(`取引の保存に失敗しました\n${errMsg}`)
       }
     }
-  }, [date, time, amount, merchant, asset, category, memo, receiptImage, receiptDetails, hasAutoSaved, onSave, onSaveSuccess, onClose])
+  }, [date, time, amount, merchant, asset, category, memo, receiptImage, detailsForDb, hasAutoSaved, onSave, onSaveSuccess, onClose])
 
   return (
     <>
@@ -986,6 +991,190 @@ export function ManualEntry({ onClose, onSave, onSaveSuccess }: ManualEntryProps
                   borderRadius: '4px',
                 }}
               />
+            </div>
+          )}
+
+          {purchaseLineDraft !== null && (
+            <div style={{
+              marginTop: '1rem',
+              padding: '1rem',
+              backgroundColor: '#f5f9ff',
+              borderRadius: '8px',
+              border: '1px solid #cfe2ff',
+            }}>
+              <div style={{
+                fontWeight: 'bold',
+                marginBottom: '0.5rem',
+                fontSize: '15px',
+              }}>
+                購入明細（レシート解析）
+              </div>
+              <p style={{
+                margin: '0 0 0.75rem',
+                fontSize: '13px',
+                color: '#555',
+                lineHeight: 1.5,
+              }}>
+                内容を確認・修正したうえで「取引に明細を含める」を押すと、保存時に明細が登録されます。押さない場合はレシート画像のみが保存され、行明細は保存されません。
+              </p>
+              <div style={{
+                display: 'flex',
+                gap: '0.5rem',
+                flexWrap: 'wrap',
+                marginBottom: '0.75rem',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setIncludePurchaseDetails(true)}
+                  disabled={includePurchaseDetails}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: includePurchaseDetails ? '#ccc' : '#00C300',
+                    color: 'white',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: includePurchaseDetails ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  取引に明細を含める
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIncludePurchaseDetails(false)}
+                  disabled={!includePurchaseDetails}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: '1px solid #ccc',
+                    borderRadius: '6px',
+                    backgroundColor: 'white',
+                    color: '#666',
+                    fontSize: '13px',
+                    cursor: !includePurchaseDetails ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  明細を取引から外す
+                </button>
+              </div>
+              {includePurchaseDetails && (
+                <div style={{
+                  fontSize: '12px',
+                  color: '#1a7f37',
+                  marginBottom: '0.5rem',
+                  fontWeight: 'bold',
+                }}>
+                  保存時に明細が含まれます
+                </div>
+              )}
+              {!includePurchaseDetails && (
+                <div style={{
+                  fontSize: '12px',
+                  color: '#b45309',
+                  marginBottom: '0.5rem',
+                }}>
+                  明細はまだ取引に含まれていません
+                </div>
+              )}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}>
+                {purchaseLineDraft.map((row, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      gap: '0.5rem',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <input
+                      type="text"
+                      value={row.name}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setPurchaseLineDraft(prev =>
+                          prev ? prev.map((r, i) => (i === idx ? { ...r, name: v } : r)) : prev
+                        )
+                      }}
+                      placeholder="品目"
+                      style={{
+                        flex: '1 1 140px',
+                        minWidth: '120px',
+                        padding: '0.5rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={Number.isFinite(row.amount) ? String(row.amount) : ''}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^\d.,]/g, '')
+                        const num = parseFloat(raw.replace(/,/g, ''))
+                        setPurchaseLineDraft(prev =>
+                          prev
+                            ? prev.map((r, i) =>
+                                i === idx ? { ...r, amount: Number.isFinite(num) ? num : 0 } : r
+                              )
+                            : prev
+                        )
+                      }}
+                      placeholder="金額"
+                      style={{
+                        width: '100px',
+                        padding: '0.5rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPurchaseLineDraft(prev =>
+                          prev ? prev.filter((_, i) => i !== idx) : prev
+                        )
+                      }}
+                      style={{
+                        padding: '0.35rem 0.6rem',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        backgroundColor: 'white',
+                        color: '#c00',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      削除
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setPurchaseLineDraft(prev => [...(prev || []), { name: '', amount: 0 }])
+                }
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.5rem 1rem',
+                  border: '1px dashed #999',
+                  borderRadius: '6px',
+                  backgroundColor: 'white',
+                  color: '#555',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  width: '100%',
+                }}
+              >
+                行を追加
+              </button>
             </div>
           )}
         </div>
