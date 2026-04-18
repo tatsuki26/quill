@@ -4,7 +4,7 @@
 # 実装完了時は、このスクリプトのコミットメッセージを実装内容に合わせて修正してください
 
 # コミットメッセージ（実装内容に合わせて修正してください）
-COMMIT_MESSAGE="chore: GitHubリポジトリをPublic化しデプロイ再トリガー"
+COMMIT_MESSAGE="トップページリンク、グラフ/カレンダー切替、Supabaseキープアライブ用GitHub Actionsを追加"
 
 # Git操作
 git add .

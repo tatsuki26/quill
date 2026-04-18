@@ -30,6 +30,8 @@ export function Dashboard({
   const currentMonthKey = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey)
   const [calendarDay, setCalendarDay] = useState<string | null>(null)
+  /** グラフ（円・週別）とカレンダーの表示切り替え */
+  const [spendingViewMode, setSpendingViewMode] = useState<'graph' | 'calendar'>('graph')
 
   const { year, month1, month0 } = useMemo(() => {
     const [y, m] = selectedMonth.split('/').map(Number)
@@ -189,6 +191,47 @@ export function Dashboard({
       </div>
 
       <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        gap: '0.5rem',
+        marginBottom: '1rem',
+        flexWrap: 'wrap',
+      }}>
+        <button
+          type="button"
+          onClick={() => setSpendingViewMode('graph')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            border: spendingViewMode === 'graph' ? 'none' : '1px solid #ddd',
+            backgroundColor: spendingViewMode === 'graph' ? '#00a000' : 'white',
+            color: spendingViewMode === 'graph' ? 'white' : '#333',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
+        >
+          グラフビュー
+        </button>
+        <button
+          type="button"
+          onClick={() => setSpendingViewMode('calendar')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            border: spendingViewMode === 'calendar' ? 'none' : '1px solid #ddd',
+            backgroundColor: spendingViewMode === 'calendar' ? '#00a000' : 'white',
+            color: spendingViewMode === 'calendar' ? 'white' : '#333',
+            fontWeight: 'bold',
+            fontSize: '14px',
+            cursor: 'pointer',
+          }}
+        >
+          カレンダービュー
+        </button>
+      </div>
+
+      <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
         gap: '1rem',
@@ -263,7 +306,8 @@ export function Dashboard({
         </div>
       </div>
 
-      {/* 円グラフ + カテゴリ一覧 */}
+      {/* 円グラフ + カテゴリ一覧 + 週別（グラフビュー） */}
+      {spendingViewMode === 'graph' && (
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
@@ -342,8 +386,10 @@ export function Dashboard({
           </div>
         )}
       </div>
+      )}
 
-      {/* カレンダー */}
+      {/* カレンダー（カレンダービュー） */}
+      {spendingViewMode === 'calendar' && (
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
@@ -366,8 +412,10 @@ export function Dashboard({
           onSelectDay={d => setCalendarDay(d)}
         />
       </div>
+      )}
 
-      {/* 直近3か月の週別・カテゴリ別 */}
+      {/* 直近3か月の週別・カテゴリ別（グラフビュー） */}
+      {spendingViewMode === 'graph' && (
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
@@ -390,6 +438,7 @@ export function Dashboard({
         <WeeklyCategorySpendChart transactions={transactions} monthsAgo={1} />
         <WeeklyCategorySpendChart transactions={transactions} monthsAgo={2} />
       </div>
+      )}
 
       {calendarDay && (
         <DaySpendModal

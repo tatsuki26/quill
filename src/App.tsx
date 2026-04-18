@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from './contexts/AuthContext'
 import { Login } from './components/Login'
 import { TransactionList } from './components/TransactionList'
@@ -311,6 +311,19 @@ function App() {
     setFilteredTransactions(filtered)
   }
 
+  const goToTopPage = useCallback(() => {
+    setShowReport(false)
+    setShowUpload(false)
+    setShowTransactions(false)
+    setShowSettingsPage(false)
+    setShowCategoryManagement(false)
+    setShowAssetManagement(false)
+    setShowSettings(false)
+    setShowManualEntry(false)
+    setSelectedTransaction(null)
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [])
+
   const handleQuickListMonth = (monthsAgo: number | null) => {
     if (monthsAgo === null) {
       setFilters(prev => ({
@@ -347,21 +360,15 @@ function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
           {(showTransactions || showReport || showUpload) && (
             <button
-              onClick={() => {
-                setShowReport(false)
-                setShowUpload(false)
-                setShowTransactions(false)
-                // URLパラメータを更新
-                if (showTransactions) {
-                  window.history.replaceState({}, '', window.location.pathname)
-                }
-              }}
+              type="button"
+              onClick={() => goToTopPage()}
               style={{
                 border: 'none',
                 backgroundColor: 'transparent',
                 color: 'white',
                 cursor: 'pointer',
               }}
+              title="トップへ"
             >
               <ArrowLeft size={24} />
             </button>
@@ -370,17 +377,7 @@ function App() {
           <img
             src="/logo-quill.png"
             alt="Quill"
-            onClick={() => {
-              setShowReport(false)
-              setShowUpload(false)
-              setShowSettingsPage(false)
-              setShowCategoryManagement(false)
-              setShowAssetManagement(false)
-              setShowSettings(false)
-              setShowManualEntry(false)
-              setSelectedTransaction(null)
-              setShowTransactions(false)
-            }}
+            onClick={goToTopPage}
             style={{
               maxHeight: '36px',
               height: 'auto',
@@ -399,6 +396,26 @@ function App() {
               }
             }}
           />
+          {(showTransactions || showReport || showUpload || showSettingsPage) && (
+            <button
+              type="button"
+              onClick={goToTopPage}
+              style={{
+                border: 'none',
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                textDecoration: 'underline',
+                textUnderlineOffset: '2px',
+              }}
+            >
+              トップページ
+            </button>
+          )}
         </div>
         
         {/* 中央のスペース（空） */}
@@ -535,7 +552,10 @@ function App() {
       )}
 
       {showReport ? (
-        <UsageReport transactions={transactions} />
+        <UsageReport
+          transactions={transactions}
+          onSelectTransaction={tx => setSelectedTransaction(tx)}
+        />
       ) : (showTransactions || new URLSearchParams(window.location.search).get('page') === 'transactions') ? (
         <>
           <FilterBar
