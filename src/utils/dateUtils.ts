@@ -1,4 +1,15 @@
-import { format, parse, startOfMonth, endOfMonth, startOfDay, endOfDay, isBefore, isAfter, parseISO } from 'date-fns'
+import {
+  format,
+  parse,
+  startOfMonth,
+  endOfMonth,
+  startOfDay,
+  endOfDay,
+  isBefore,
+  isAfter,
+  parseISO,
+  subMonths,
+} from 'date-fns'
 import { ja } from 'date-fns/locale/ja'
 
 const DATE_FORMATS = ['yyyy/MM/dd HH:mm:ss', 'yyyy/MM/dd', 'yyyy-MM-dd HH:mm:ss', 'yyyy-MM-dd'] as const
@@ -128,4 +139,20 @@ export function splitTransactionDateForInput(dateString: string): { date: string
   const mo = String(today.getMonth() + 1).padStart(2, '0')
   const d = String(today.getDate()).padStart(2, '0')
   return { date: `${y}/${mo}/${d}`, time: '12:00:00' }
+}
+
+/** 今月から N ヶ月前の月の [開始, 終了] を HTML date 用 yyyy-MM-dd で返す（N=0 が今月） */
+export function getMonthDateRangeYyyyMmDd(monthsAgo: number): { dateFrom: string; dateTo: string } {
+  const ref = subMonths(new Date(), monthsAgo)
+  const start = startOfMonth(ref)
+  const end = endOfMonth(ref)
+  return {
+    dateFrom: format(start, 'yyyy-MM-dd'),
+    dateTo: format(end, 'yyyy-MM-dd'),
+  }
+}
+
+/** 年・月(1-12)で表示用ラベル */
+export function formatYearMonthJa(year: number, month1: number): string {
+  return `${year}年${month1}月`
 }

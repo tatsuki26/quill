@@ -17,13 +17,16 @@ import { ManualEntry } from './components/ManualEntry'
 import { SettingsPage } from './components/SettingsPage'
 import { TransactionDetail } from './components/TransactionDetail'
 import { Dashboard } from './components/Dashboard'
-import { transactionMatchesDateFilter } from './utils/dateUtils'
+import { transactionMatchesDateFilter, getMonthDateRangeYyyyMmDd } from './utils/dateUtils'
 
 function App() {
   const { user, logout, isAdmin } = useAuth()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([])
-  const [filters, setFilters] = useState<FilterType>({})
+  const [filters, setFilters] = useState<FilterType>(() => {
+    const { dateFrom, dateTo } = getMonthDateRangeYyyyMmDd(0)
+    return { dateFrom, dateTo }
+  })
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [showReport, setShowReport] = useState(false)
   const [showUpload, setShowUpload] = useState(false)
@@ -308,6 +311,23 @@ function App() {
     setFilteredTransactions(filtered)
   }
 
+  const handleQuickListMonth = (monthsAgo: number | null) => {
+    if (monthsAgo === null) {
+      setFilters(prev => ({
+        ...prev,
+        dateFrom: undefined,
+        dateTo: undefined,
+      }))
+      return
+    }
+    const { dateFrom, dateTo } = getMonthDateRangeYyyyMmDd(monthsAgo)
+    setFilters(prev => ({
+      ...prev,
+      dateFrom,
+      dateTo,
+    }))
+  }
+
   if (!user) {
     return <Login />
   }
@@ -515,12 +535,13 @@ function App() {
       )}
 
       {showReport ? (
-        <UsageReport transactions={filteredTransactions} />
+        <UsageReport transactions={transactions} />
       ) : (showTransactions || new URLSearchParams(window.location.search).get('page') === 'transactions') ? (
         <>
           <FilterBar
             filters={filters}
             onToggleFilterPanel={() => setShowFilterPanel(true)}
+            onQuickMonth={handleQuickListMonth}
           />
 
           {loading ? (
@@ -553,9 +574,9 @@ function App() {
           transactions={transactions}
           onNavigateToTransactions={() => {
             setShowTransactions(true)
-            // URLパラメータを更新
             window.history.pushState({}, '', '?page=transactions')
           }}
+          onSelectTransaction={tx => setSelectedTransaction(tx)}
         />
       )}
 

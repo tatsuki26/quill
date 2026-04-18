@@ -1,69 +1,119 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Transaction } from '../types'
 import { formatCurrency } from '../utils/formatCurrency'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { formatYearMonthJa } from '../utils/dateUtils'
+import {
+  aggregateCategoryAmounts,
+  filterWithdrawalsInMonth,
+} from '../utils/spendingAnalytics'
+import { WeeklyCategorySpendChart } from './WeeklyCategorySpendChart'
+
+const COLORS = ['#FF6B6B', '#FFA07A', '#F7DC6F', '#98D8C8', '#4ECDC4', '#45B7D1', '#BB8FCE', '#85C1E2', '#95A5A6']
 
 interface UsageReportProps {
   transactions: Transaction[]
 }
 
-const COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2', '#F8B739', '#95A5A6']
-
 export function UsageReport({ transactions }: UsageReportProps) {
-  const reportData = useMemo(() => {
-    // 出金のみを集計
-    const withdrawals = transactions.filter(tx => tx.withdrawal_amount !== null && !tx.is_hidden)
+  const now = new Date()
+  const currentMonthKey = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey)
 
-    // カテゴリ別集計
-    const categoryTotals: Record<string, number> = {}
-    withdrawals.forEach(tx => {
-      const category = tx.category || 'その他'
-      categoryTotals[category] = (categoryTotals[category] || 0) + (tx.withdrawal_amount || 0)
-    })
+  const { year, month1, month0 } = useMemo(() => {
+    const [y, m] = selectedMonth.split('/').map(Number)
+    return { year: y, month1: m, month0: m - 1 }
+  }, [selectedMonth])
 
-    const categoryData = Object.entries(categoryTotals)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
+  const withdrawalsInMonth = useMemo(
+    () => filterWithdrawalsInMonth(transactions, year, month0),
+    [transactions, year, month0]
+  )
 
-    // 月別集計
-    const monthlyTotals: Record<string, number> = {}
-    withdrawals.forEach(tx => {
-      const month = tx.transaction_date.substring(0, 7) // YYYY-MM
-      monthlyTotals[month] = (monthlyTotals[month] || 0) + (tx.withdrawal_amount || 0)
-    })
+  const categoryData = useMemo(
+    () => aggregateCategoryAmounts(withdrawalsInMonth).map(c => ({ name: c.category, value: c.amount })),
+    [withdrawalsInMonth]
+  )
 
-    const monthlyData = Object.entries(monthlyTotals)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+  const totalAmount = useMemo(
+    () => withdrawalsInMonth.reduce((s, tx) => s + (tx.withdrawal_amount || 0), 0),
+    [withdrawalsInMonth]
+  )
 
-    // 取引先ランキング
-    const merchantTotals: Record<string, number> = {}
-    withdrawals.forEach(tx => {
-      merchantTotals[tx.merchant] = (merchantTotals[tx.merchant] || 0) + (tx.withdrawal_amount || 0)
-    })
+  const changeMonth = (dir: 'prev' | 'next') => {
+    const [y, m] = selectedMonth.split('/').map(Number)
+    const d = new Date(y, m - 1, 1)
+    if (dir === 'prev') d.setMonth(d.getMonth() - 1)
+    else d.setMonth(d.getMonth() + 1)
+    const nextKey = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}`
+    if (dir === 'next' && nextKey > currentMonthKey) return
+    setSelectedMonth(nextKey)
+  }
 
-    const merchantRanking = Object.entries(merchantTotals)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 10)
-
-    const totalAmount = withdrawals.reduce((sum, tx) => sum + (tx.withdrawal_amount || 0), 0)
-
-    return {
-      categoryData,
-      monthlyData,
-      merchantRanking,
-      totalAmount,
-    }
-  }, [transactions])
+  const monthLabelJa = formatYearMonthJa(year, month1)
+  const isCurrentMonth = selectedMonth === currentMonthKey
 
   return (
-    <div style={{ padding: '1rem' }}>
+    <div style={{ padding: '1rem', maxWidth: '720px', margin: '0 auto' }}>
       <div style={{
-        backgroundColor: '#f9f9f9',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '1rem',
+        marginBottom: '1.25rem',
+        padding: '0.75rem',
+        backgroundColor: 'white',
         borderRadius: '12px',
-        padding: '1.5rem',
+        boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+      }}>
+        <button
+          type="button"
+          onClick={() => changeMonth('prev')}
+          style={{
+            border: 'none',
+            backgroundColor: '#f0f0f0',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ChevronLeft size={22} />
+        </button>
+        <span style={{ fontSize: '18px', fontWeight: 'bold', minWidth: '120px', textAlign: 'center' }}>
+          {monthLabelJa}
+        </span>
+        <button
+          type="button"
+          onClick={() => changeMonth('next')}
+          disabled={isCurrentMonth}
+          style={{
+            border: 'none',
+            backgroundColor: isCurrentMonth ? '#f5f5f5' : '#f0f0f0',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            cursor: isCurrentMonth ? 'not-allowed' : 'pointer',
+            opacity: isCurrentMonth ? 0.45 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ChevronRight size={22} />
+        </button>
+      </div>
+
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        padding: '1.25rem',
         marginBottom: '1rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}>
         <div style={{
           display: 'flex',
@@ -75,152 +125,85 @@ export function UsageReport({ transactions }: UsageReportProps) {
           borderRadius: '8px',
           color: 'white',
         }}>
-          <span style={{ fontWeight: 'bold' }}>出金</span>
-          <span style={{ fontWeight: 'bold' }}>合計 {formatCurrency(reportData.totalAmount)}</span>
+          <span style={{ fontWeight: 'bold' }}>支出</span>
+          <span style={{ fontWeight: 'bold' }}>合計 {formatCurrency(totalAmount)}</span>
         </div>
 
-        <div style={{ marginBottom: '1rem' }}>
-          {reportData.categoryData.map((item, index) => (
-            <div
-              key={item.name}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '0.5rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {categoryData.length > 0 ? (
+          <>
+            <div style={{ marginBottom: '1rem' }}>
+              {categoryData.map((item, index) => (
                 <div
+                  key={item.name}
                   style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '50%',
-                    backgroundColor: COLORS[index % COLORS.length],
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '0.5rem',
                   }}
-                />
-                <span>{item.name}</span>
-              </div>
-              <span style={{ fontWeight: 'bold' }}>{formatCurrency(item.value)}</span>
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div
+                      style={{
+                        width: '12px',
+                        height: '12px',
+                        borderRadius: '50%',
+                        backgroundColor: COLORS[index % COLORS.length],
+                      }}
+                    />
+                    <span>{item.name}</span>
+                  </div>
+                  <span style={{ fontWeight: 'bold' }}>{formatCurrency(item.value)}</span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-
-        <div style={{ height: '200px', marginBottom: '1rem' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={reportData.categoryData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ percent }) => `${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {reportData.categoryData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+            <div style={{ height: '220px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={88}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categoryData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
+            この月の出金データがありません
+          </div>
+        )}
       </div>
 
       <div style={{
-        backgroundColor: '#f9f9f9',
+        backgroundColor: 'white',
         borderRadius: '12px',
-        padding: '1.5rem',
-        marginBottom: '1rem',
+        padding: '1.25rem',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
       }}>
-        <div style={{
-          padding: '0.75rem',
-          backgroundColor: '#FF6B6B',
-          borderRadius: '8px',
-          color: 'white',
+        <h2 style={{
+          margin: '0 0 0.75rem',
+          fontSize: '16px',
           fontWeight: 'bold',
-          marginBottom: '1rem',
+          color: '#333',
         }}>
-          支払ったお店ランキング
-        </div>
-
-        {reportData.merchantRanking.map((item, index) => (
-          <div
-            key={item.name}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              marginBottom: '1rem',
-            }}
-          >
-            <div style={{
-              fontSize: '18px',
-              fontWeight: 'bold',
-              color: '#666',
-              minWidth: '24px',
-            }}>
-              {index + 1}.
-            </div>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#f0f0f0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {item.name.charAt(0)}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 'bold' }}>{item.name}</div>
-            </div>
-            <div style={{ fontWeight: 'bold' }}>{formatCurrency(item.value)}</div>
-          </div>
-        ))}
-
-        <div style={{
-          fontSize: '12px',
-          color: '#999',
-          marginTop: '1rem',
-          fontStyle: 'italic',
-        }}>
-          ※PayPayカードでの支払いを除く
-        </div>
+          今月・前月・前々月の週別（カテゴリ別）
+        </h2>
+        <WeeklyCategorySpendChart transactions={transactions} monthsAgo={0} />
+        <WeeklyCategorySpendChart transactions={transactions} monthsAgo={1} />
+        <WeeklyCategorySpendChart transactions={transactions} monthsAgo={2} />
       </div>
-
-      {reportData.monthlyData.length > 0 && (
-        <div style={{
-          backgroundColor: '#f9f9f9',
-          borderRadius: '12px',
-          padding: '1.5rem',
-        }}>
-          <div style={{
-            padding: '0.75rem',
-            backgroundColor: '#4ECDC4',
-            borderRadius: '8px',
-            color: 'white',
-            fontWeight: 'bold',
-            marginBottom: '1rem',
-          }}>
-            月別推移
-          </div>
-          <div style={{ height: '200px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={reportData.monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                <Bar dataKey="value" fill="#00C300" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
