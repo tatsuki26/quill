@@ -396,26 +396,6 @@ function App() {
               }
             }}
           />
-          {(showTransactions || showReport || showUpload || showSettingsPage) && (
-            <button
-              type="button"
-              onClick={goToTopPage}
-              style={{
-                border: 'none',
-                backgroundColor: 'rgba(255,255,255,0.2)',
-                color: 'white',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                textDecoration: 'underline',
-                textUnderlineOffset: '2px',
-              }}
-            >
-              トップページ
-            </button>
-          )}
         </div>
         
         {/* 中央のスペース（空） */}
