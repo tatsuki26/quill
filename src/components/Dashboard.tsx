@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Transaction } from '../types'
 import { formatCurrency } from '../utils/formatCurrency'
 import { ArrowRight, TrendingDown, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { formatYearMonthJa } from '../utils/dateUtils'
 import {
   aggregateCategoryAmounts,
@@ -12,8 +11,7 @@ import {
 import { SpendingCalendar } from './SpendingCalendar'
 import { DaySpendModal } from './DaySpendModal'
 import { WeeklyCategorySpendChart } from './WeeklyCategorySpendChart'
-
-const PIE_COLORS = ['#FF6B6B', '#FFA07A', '#F7DC6F', '#98D8C8', '#4ECDC4', '#45B7D1', '#BB8FCE', '#85C1E2', '#95A5A6']
+import { CategorySpendBreakdown } from './CategorySpendBreakdown'
 
 interface DashboardProps {
   transactions: Transaction[]
@@ -56,11 +54,6 @@ export function Dashboard({
   const categoryExpenses = useMemo(
     () => aggregateCategoryAmounts(withdrawalsInMonth),
     [withdrawalsInMonth]
-  )
-
-  const pieData = useMemo(
-    () => categoryExpenses.map(c => ({ name: c.category, value: c.amount })),
-    [categoryExpenses]
   )
 
   const monthlyTransactionCount = txsInMonth.length
@@ -323,63 +316,11 @@ export function Dashboard({
         }}>
           カテゴリ別の支出（{monthLabelJa}）
         </h2>
-        {pieData.length > 0 ? (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: '1.25rem',
-            alignItems: 'center',
-          }}>
-            <div style={{ height: '260px', minWidth: '200px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(1)}%`
-                    }
-                  >
-                    {pieData.map((_, i) => (
-                      <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div>
-              {categoryExpenses.map((item, idx) => (
-                <div
-                  key={item.category}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '0.65rem 0',
-                    borderBottom: idx < categoryExpenses.length - 1 ? '1px solid #f0f0f0' : 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: PIE_COLORS[idx % PIE_COLORS.length],
-                    }} />
-                    <span style={{ fontSize: '14px', color: '#333' }}>{item.category}</span>
-                  </div>
-                  <span style={{ fontSize: '15px', fontWeight: 'bold', color: '#e74c3c' }}>
-                    {formatCurrency(item.amount)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {categoryExpenses.length > 0 ? (
+          <CategorySpendBreakdown
+            rows={categoryExpenses.map(c => ({ name: c.category, amount: c.amount }))}
+            stackCaption={`${monthLabelJa}の内訳（割合）`}
+          />
         ) : (
           <div style={{ padding: '2rem', textAlign: 'center', color: '#999', fontSize: '14px' }}>
             この月の出金データがありません

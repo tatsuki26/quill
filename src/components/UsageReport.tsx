@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Transaction } from '../types'
 import { formatCurrency } from '../utils/formatCurrency'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatYearMonthJa } from '../utils/dateUtils'
 import {
@@ -11,8 +10,7 @@ import {
 import { WeeklyCategorySpendChart } from './WeeklyCategorySpendChart'
 import { SpendingCalendar } from './SpendingCalendar'
 import { DaySpendModal } from './DaySpendModal'
-
-const COLORS = ['#FF6B6B', '#FFA07A', '#F7DC6F', '#98D8C8', '#4ECDC4', '#45B7D1', '#BB8FCE', '#85C1E2', '#95A5A6']
+import { CategorySpendBreakdown } from './CategorySpendBreakdown'
 
 interface UsageReportProps {
   transactions: Transaction[]
@@ -36,8 +34,8 @@ export function UsageReport({ transactions, onSelectTransaction }: UsageReportPr
     [transactions, year, month0]
   )
 
-  const categoryData = useMemo(
-    () => aggregateCategoryAmounts(withdrawalsInMonth).map(c => ({ name: c.category, value: c.amount })),
+  const categoryRows = useMemo(
+    () => aggregateCategoryAmounts(withdrawalsInMonth).map(c => ({ name: c.category, amount: c.amount })),
     [withdrawalsInMonth]
   )
 
@@ -177,56 +175,12 @@ export function UsageReport({ transactions, onSelectTransaction }: UsageReportPr
 
         {spendingViewMode === 'graph' && (
           <>
-            {categoryData.length > 0 ? (
-              <>
-                <div style={{ marginBottom: '1rem' }}>
-                  {categoryData.map((item, index) => (
-                    <div
-                      key={item.name}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.5rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div
-                          style={{
-                            width: '12px',
-                            height: '12px',
-                            borderRadius: '50%',
-                            backgroundColor: COLORS[index % COLORS.length],
-                          }}
-                        />
-                        <span>{item.name}</span>
-                      </div>
-                      <span style={{ fontWeight: 'bold' }}>{formatCurrency(item.value)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ height: '220px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={88}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {categoryData.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </>
+            {categoryRows.length > 0 ? (
+              <CategorySpendBreakdown
+                rows={categoryRows}
+                amountColor="#1a1a1a"
+                stackCaption={`${monthLabelJa}の内訳（割合）`}
+              />
             ) : (
               <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>
                 この月の出金データがありません

@@ -1,35 +1,88 @@
 # Supabase の無料プロジェクトは一定期間アクセスがないとスリープすることがあるため、
-# 数日おきに REST API へ軽いリクエストを送り DB を起こしておく。
+# 毎日 REST API へ軽いリクエストを送り DB を起こしておく。
 # GitHub の Repository secrets に VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY を設定してください（deploy と同じ値で可）。
+# プロジェクトが Paused の場合は Supabase ダッシュボードで Restore してから再実行すること。
 name: Supabase keep-alive
 
 on:
   schedule:
-    # 2日ごと 03:15 UTC（日本時間 昼前後）
-    - cron: '15 3 */2 * *'
+    # 毎日 03:15 UTC（日本時間 12:15 頃）
+    - cron: '15 3 * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST (transactions head)
+      - name: Ping Supabase REST (transactions)
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
-          set -e
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL// }" ] || [ -z "${SUPABASE_ANON_KEY// }" ]; then
             echo "::error::Secrets VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY must be set on this repository."
             exit 1
           fi
-          BASE="${SUPABASE_URL%/}"
-          code=$(curl -sS -o /dev/null -w "%{http_code}" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
-            "${BASE}/rest/v1/transactions?select=id&limit=1")
-          echo "HTTP ${code}"
-          if [ "$code" != "200" ]; then
-            echo "::error::Unexpected status ${code}"
+
+          BASE="$(printf '%s' "$SUPABASE_URL" | tr -d '[:space:]')"
+          BASE="${BASE%/}"
+          if [[ ! "$BASE" =~ ^https?:// ]]; then
+            BASE="https://${BASE}"
+          fi
+
+          ENDPOINT="${BASE}/rest/v1/transactions?select=id&limit=1"
+          echo "Pinging ${BASE}/rest/v1/transactions"
+
+          MAX_ATTEMPTS=3
+          RETRY_DELAY=30
+          attempt=1
+          code="000"
+          curl_exit=0
+
+          while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+            set +e
+            code=$(curl -sS -o /dev/null -w "%{http_code}" \
+              --connect-timeout 20 \
+              --max-time 60 \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              "${ENDPOINT}")
+            curl_exit=$?
+            set -e
+
+            if [ "$curl_exit" -eq 0 ] && [ "$code" = "200" ]; then
+              echo "HTTP ${code} (attempt ${attempt}/${MAX_ATTEMPTS})"
+              exit 0
+            fi
+
+            if [ "$curl_exit" -ne 0 ]; then
+              echo "Attempt ${attempt}/${MAX_ATTEMPTS}: curl failed (exit ${curl_exit})"
+            else
+              echo "Attempt ${attempt}/${MAX_ATTEMPTS}: HTTP ${code}"
+            fi
+
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              echo "Retrying in ${RETRY_DELAY}s..."
+              sleep "$RETRY_DELAY"
+            fi
+            attempt=$((attempt + 1))
+          done
+
+          if [ "$curl_exit" -eq 6 ]; then
+            host="${BASE#https://}"
+            host="${host#http://}"
+            host="${host%%/*}"
+            echo "::error::Could not resolve host '${host}'. The Supabase project is likely paused or deleted."
+            echo "::error::Open https://supabase.com/dashboard , restore the project if it shows Paused, wait until Active, then re-run this workflow."
             exit 1
           fi
+
+          if [ "$curl_exit" -ne 0 ]; then
+            echo "::error::curl failed with exit code ${curl_exit}"
+            exit 1
+          fi
+
+          echo "::error::Unexpected HTTP status ${code}"
+          exit 1
