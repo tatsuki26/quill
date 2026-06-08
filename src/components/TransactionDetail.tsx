@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Receipt, Calendar, Store, CreditCard, Tag, User, Hash, Trash2 } from 'lucide-react'
-import { Transaction } from '../types'
+import { Transaction, Asset } from '../types'
 import { formatTransactionDate, formatDateTimeForDb, splitTransactionDateForInput } from '../utils/dateUtils'
 import { formatCurrency } from '../utils/formatCurrency'
 import { supabase } from '../lib/supabase'
@@ -14,6 +14,8 @@ interface TransactionDetailProps {
   onUpdateCategory?: (id: string, merchant: string, category: string) => Promise<void>
   onUpdateTransactionDate?: (id: string, transaction_date: string) => Promise<void>
   onUpdateDetails?: (id: string, details: Transaction['details']) => Promise<void>
+  onUpdateMerchant?: (id: string, merchant: string) => Promise<void>
+  onUpdateAsset?: (id: string, asset: string | null) => Promise<void>
 }
 
 export function TransactionDetail({
@@ -24,11 +26,18 @@ export function TransactionDetail({
   onUpdateCategory,
   onUpdateTransactionDate,
   onUpdateDetails,
+  onUpdateMerchant,
+  onUpdateAsset,
 }: TransactionDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [dateInput, setDateInput] = useState('')
   const [timeInput, setTimeInput] = useState('')
   const [savingDate, setSavingDate] = useState(false)
+  const [merchantInput, setMerchantInput] = useState('')
+  const [savingMerchant, setSavingMerchant] = useState(false)
+  const [assetInput, setAssetInput] = useState('')
+  const [savingAsset, setSavingAsset] = useState(false)
+  const [assets, setAssets] = useState<Asset[]>([])
   const [detailRows, setDetailRows] = useState<Array<{ name: string; amount: number }>>([])
   const [savingDetails, setSavingDetails] = useState(false)
 
@@ -37,6 +46,34 @@ export function TransactionDetail({
     setDateInput(p.date)
     setTimeInput(p.time)
   }, [transaction.id, transaction.transaction_date])
+
+  useEffect(() => {
+    setMerchantInput(transaction.merchant)
+  }, [transaction.id, transaction.merchant])
+
+  useEffect(() => {
+    setAssetInput(transaction.asset ?? '')
+  }, [transaction.id, transaction.asset])
+
+  useEffect(() => {
+    const loadAssets = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('assets')
+          .select('*')
+          .order('display_order', { ascending: true })
+
+        if (error) throw error
+        setAssets(data || [])
+      } catch (error) {
+        console.error('[TransactionDetail] 資産の読み込みエラー:', error)
+      }
+    }
+
+    if (onUpdateAsset) {
+      loadAssets()
+    }
+  }, [onUpdateAsset])
 
   useEffect(() => {
     const d = transaction.details as { items: Array<{ name: string; amount: number }> } | null
@@ -89,6 +126,37 @@ export function TransactionDetail({
       alert('日時の保存に失敗しました')
     } finally {
       setSavingDate(false)
+    }
+  }
+
+  const handleSaveMerchant = async () => {
+    if (!onUpdateMerchant) return
+    const trimmed = merchantInput.trim()
+    if (!trimmed) {
+      alert('店舗名を入力してください')
+      return
+    }
+    setSavingMerchant(true)
+    try {
+      await onUpdateMerchant(transaction.id, trimmed)
+    } catch (error) {
+      console.error('[TransactionDetail] 店舗名の保存エラー:', error)
+      alert('店舗名の保存に失敗しました')
+    } finally {
+      setSavingMerchant(false)
+    }
+  }
+
+  const handleSaveAsset = async () => {
+    if (!onUpdateAsset) return
+    setSavingAsset(true)
+    try {
+      await onUpdateAsset(transaction.id, assetInput || null)
+    } catch (error) {
+      console.error('[TransactionDetail] 資産の保存エラー:', error)
+      alert('資産の保存に失敗しました')
+    } finally {
+      setSavingAsset(false)
     }
   }
 
@@ -162,14 +230,64 @@ export function TransactionDetail({
           padding: '1rem',
           marginBottom: '1rem',
         }}>
+          {/* 店舗名（編集） */}
           <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
             marginBottom: '0.75rem',
+            padding: '0.75rem',
+            backgroundColor: 'white',
+            borderRadius: '6px',
+            border: '1px solid #e8e8e8',
           }}>
-            <Store size={18} color="#666" />
-            <span style={{ fontWeight: 'bold', fontSize: '18px' }}>{transaction.merchant}</span>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.5rem',
+              fontSize: '13px',
+              fontWeight: 'bold',
+              color: '#444',
+            }}>
+              <Store size={16} color="#666" />
+              店舗名
+            </div>
+            {onUpdateMerchant ? (
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  value={merchantInput}
+                  onChange={(e) => setMerchantInput(e.target.value)}
+                  placeholder="店舗名を入力"
+                  style={{
+                    flex: '1 1 180px',
+                    minWidth: '140px',
+                    padding: '0.5rem',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveMerchant}
+                  disabled={savingMerchant}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    border: 'none',
+                    borderRadius: '6px',
+                    backgroundColor: savingMerchant ? '#ccc' : '#00C300',
+                    color: 'white',
+                    fontSize: '13px',
+                    fontWeight: 'bold',
+                    cursor: savingMerchant ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {savingMerchant ? '保存中…' : '保存'}
+                </button>
+              </div>
+            ) : (
+              <span style={{ fontWeight: 'bold', fontSize: '18px' }}>{transaction.merchant}</span>
+            )}
           </div>
 
           <div style={{
@@ -272,12 +390,72 @@ export function TransactionDetail({
               <CreditCard size={16} color="#666" />
               <span>{transaction.payment_method}</span>
             </div>
-            {transaction.asset && (
+            {onUpdateAsset ? (
+              <div style={{
+                gridColumn: '1 / -1',
+                padding: '0.75rem',
+                backgroundColor: 'white',
+                borderRadius: '6px',
+                border: '1px solid #e8e8e8',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginBottom: '0.5rem',
+                  fontSize: '13px',
+                  fontWeight: 'bold',
+                  color: '#444',
+                }}>
+                  <CreditCard size={16} color="#666" />
+                  資産
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <select
+                    value={assetInput}
+                    onChange={(e) => setAssetInput(e.target.value)}
+                    style={{
+                      flex: '1 1 160px',
+                      minWidth: '140px',
+                      padding: '0.5rem',
+                      border: '1px solid #ddd',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <option value="">未設定</option>
+                    {assets.map(a => (
+                      <option key={a.id} value={a.name}>{a.name}</option>
+                    ))}
+                    {assetInput && !assets.some(a => a.name === assetInput) && (
+                      <option value={assetInput}>{assetInput}（一覧にない値）</option>
+                    )}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleSaveAsset}
+                    disabled={savingAsset}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      border: 'none',
+                      borderRadius: '6px',
+                      backgroundColor: savingAsset ? '#ccc' : '#00C300',
+                      color: 'white',
+                      fontSize: '13px',
+                      fontWeight: 'bold',
+                      cursor: savingAsset ? 'not-allowed' : 'pointer',
+                    }}
+                  >
+                    {savingAsset ? '保存中…' : '保存'}
+                  </button>
+                </div>
+              </div>
+            ) : transaction.asset ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CreditCard size={16} color="#666" />
                 <span>資産: {transaction.asset}</span>
               </div>
-            )}
+            ) : null}
             {transaction.user && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <User size={16} color="#666" />

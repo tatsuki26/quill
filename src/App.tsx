@@ -207,6 +207,50 @@ function App() {
     }
   }
 
+  const handleUpdateMerchant = async (id: string, merchant: string) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ merchant, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, merchant } : tx))
+      )
+      setFilteredTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, merchant } : tx))
+      )
+      patchSelectedTransaction(id, { merchant })
+    } catch (error) {
+      console.error('Error updating merchant:', error)
+      throw error
+    }
+  }
+
+  const handleUpdateAsset = async (id: string, asset: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('transactions')
+        .update({ asset, updated_at: new Date().toISOString() })
+        .eq('id', id)
+
+      if (error) throw error
+
+      setTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, asset } : tx))
+      )
+      setFilteredTransactions(prev =>
+        prev.map(tx => (tx.id === id ? { ...tx, asset } : tx))
+      )
+      patchSelectedTransaction(id, { asset })
+    } catch (error) {
+      console.error('Error updating asset:', error)
+      throw error
+    }
+  }
+
   const loadTransactions = async () => {
     try {
       setLoading(true)
@@ -631,6 +675,8 @@ function App() {
           onUpdateCategory={handleUpdateCategory}
           onUpdateTransactionDate={handleUpdateTransactionDate}
           onUpdateDetails={handleUpdateDetails}
+          onUpdateMerchant={handleUpdateMerchant}
+          onUpdateAsset={handleUpdateAsset}
         />
       )}
 
