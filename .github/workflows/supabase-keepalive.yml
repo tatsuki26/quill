@@ -2,6 +2,11 @@
 # 毎日 REST API へ軽いリクエストを送り DB を起こしておく。
 # GitHub の Repository secrets に VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY を設定してください（deploy と同じ値で可）。
 # プロジェクトが Paused の場合は Supabase ダッシュボードで Restore してから再実行すること。
+#
+# 注意: GitHub は「デフォルトブランチに60日間 push がない」と scheduled workflow を
+# 自動的に disabled_inactivity にしてしまう。このワークフロー自身が動き続けていても
+# リポジトリへの push がなければ無効化されてしまうため、最終コミットから30日以上経って
+# いたら空コミットを push してリポジトリを「アクティブ」に保つ。
 name: Supabase keep-alive
 
 on:
@@ -10,10 +15,18 @@ on:
     - cron: '15 3 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Ping Supabase REST (transactions)
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
@@ -86,3 +99,23 @@ jobs:
 
           echo "::error::Unexpected HTTP status ${code}"
           exit 1
+
+      - name: Keep repository active (avoid workflow auto-disable)
+        if: always()
+        run: |
+          set -euo pipefail
+
+          LAST_COMMIT_EPOCH=$(git log -1 --format=%ct)
+          NOW_EPOCH=$(date +%s)
+          DAYS_SINCE=$(( (NOW_EPOCH - LAST_COMMIT_EPOCH) / 86400 ))
+          echo "Days since last commit: ${DAYS_SINCE}"
+
+          if [ "$DAYS_SINCE" -lt 30 ]; then
+            echo "Repository was active within the last 30 days, skipping."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keep-alive (repository inactivity prevention)"
+          git push origin HEAD:${GITHUB_REF_NAME}
